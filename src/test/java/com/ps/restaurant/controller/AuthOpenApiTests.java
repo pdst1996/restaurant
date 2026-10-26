@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.ps.restaurant.config.JwtService;
 import com.ps.restaurant.repository.UserRepository;
 
+/** Checks authentication endpoint schemas in the generated OpenAPI document without security filters. */
 @WebMvcTest(controllers = AuthController.class, properties = {"debug=false", "logging.level.root=WARN"})
 @AutoConfigureMockMvc(addFilters = false)
 @EnableConfigurationProperties(SpringDocConfigProperties.class)
@@ -38,6 +39,7 @@ class AuthOpenApiTests {
     @MockitoBean
     private JwtService jwtService;
 
+    /** Checks the documented login error schema reference and preserves the successful login response schema. */
     @Test
     void documentsLoginErrorAndPreservesSuccessSchema() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
@@ -50,6 +52,7 @@ class AuthOpenApiTests {
                         .value("#/components/schemas/LoginResponse"));
     }
 
+    /** Checks registration conflict details, the created status, and the expected structured-error schema fields. */
     @Test
     void documentsRegistrationConflictAndCreatedStatus() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))

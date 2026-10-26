@@ -13,6 +13,7 @@ import com.ps.restaurant.dto.UserResponse;
 
 import lombok.RequiredArgsConstructor;
 
+/** Exposes the profile associated with the current authenticated principal. */
 @RestController 
 @RequestMapping ("/api")
 @RequiredArgsConstructor 
@@ -20,10 +21,11 @@ public class MeController {
 
     private final UserRepository userRepository;
 
+    /** Looks up the principal's user and returns a password-free profile, or rejects a missing account. */
     @GetMapping ("/me")
     public ApiResponse<UserResponse> me(Authentication auth) {
         User u = userRepository.findByUserOrEmail(auth.getName())
             .orElseThrow(() -> new UnauthorizedException("Sesión inválida"));
-        return ApiResponse.ok(new UserResponse(u.getId(), u.getEmail(), u.getUser(), u.getName(), u.getSurName()));
+        return ApiResponse.ok(new UserResponse(u.getId(), u.getEmail(), u.getUser(), u.getFullName(), u.getRole(), u.isActive()));
     }
 }

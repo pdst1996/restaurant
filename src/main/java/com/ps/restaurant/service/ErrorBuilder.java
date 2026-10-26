@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 
 import com.ps.restaurant.interfaces.ErrorResponseException;
 
+/** Builds structured error exceptions from localized resource bundles and optional message overrides. */
 public class ErrorBuilder {
 
     private static final List<String> SUPPORTED_LANGUAGES = List.of("es", "en");
@@ -28,16 +29,19 @@ public class ErrorBuilder {
     
     private final Map<String, String> messageVariables;
 
+    /** Initializes mutable message maps, an empty default message, and the default HTTP 500 status. */
     public ErrorBuilder() {
         this.messageVariables = new HashMap<>();
         this.errorMessage = new HashMap<>();
         this.message = "";
     }
 
+    /** Selects an error code and origin, allowing the English bundle to supply the default message. */
     public ErrorBuilder(String errorCode, String origin) {
         this(errorCode, null, origin);
     }
 
+    /** Selects an error code, an optional default message template, and the failure origin. */
     public ErrorBuilder(String errorCode, String message, String origin) {
         this();
         this.errorCode = errorCode;
@@ -45,6 +49,7 @@ public class ErrorBuilder {
         this.origin = origin;
     }
 
+    /** Copies localized overrides and prefers their non-null "default" entry over the supplied message. */
     public ErrorBuilder(String errorCode, String message, Map<String, String> errorMessage, String origin) {
         this(errorCode, message, origin);
         this.message = errorMessage == null || errorMessage.get("default") == null
@@ -69,21 +74,25 @@ public class ErrorBuilder {
         return this;
     }
 
+    /** Copies placeholder values into this builder, replacing existing values for matching keys. */
     public ErrorBuilder addMessageVariables(Map<String, String> messageVariables) {
         this.messageVariables.putAll(messageVariables);
         return this;
     }
 
+    /** Copies locale-specific message overrides, replacing existing entries for matching locales. */
     public ErrorBuilder addNlsMessages(Map<String, String> errorMessage) {
         this.errorMessage.putAll(errorMessage);
         return this;
     }
 
+    /** Adds or replaces a message template for one locale and returns this builder. */
     public ErrorBuilder addNlsMessage(String locale, String message) {
         this.errorMessage.put(locale, message);
         return this;
     }
 
+    /** Sets an HTTP error status, rejecting any value outside the inclusive 400-599 range. */
     public ErrorBuilder statusCode(int status) {
         if (status < 400 || status > 599) {
             throw new IllegalArgumentException("An error status must be between 400 and 599");
@@ -92,45 +101,52 @@ public class ErrorBuilder {
         return this;
     }
 
+    /** Requires a non-null Spring HTTP status and delegates to the numeric error-status validation. */
     public ErrorBuilder statusCode(HttpStatus status) {
         return statusCode(Objects.requireNonNull(status, "status").value());
     }
 
+    /** Returns the code used to look up localized message templates. */
     public String getErrorCode() {
         return errorCode;
     }
 
+    /** Replaces the message lookup code; a nonblank value is required when creating an exception. */
     public void setErrorCode(String errorCode) {
         this.errorCode = errorCode;
     }
 
+    /** Returns the configured failure origin, such as a request URI or controller operation. */
     public String getOrigin() {
         return origin;
     }
 
+    /** Updates the origin that will be copied into subsequently created exceptions. */
     public void setOrigin(String origin) {
         this.origin = origin;
     }
 
+     /** Returns the explicit default template, which may be null to enable the English bundle fallback. */
      public String getMessage() {
         return message;
     }
 
+    /** Replaces the default template; a null value selects the English localized message at creation time. */
     public void setMessage(String message) {
         this.message = message;
     }
 
     /**
-     * Creates a new instance of {@code ErrorResponseException} and throws it.
+     * Creates a localized structured exception using the current builder state and throws it.
      *
-     * @throws ErrorResponseException clientErrorResponseException
+     * @throws ErrorResponseException always, after successful exception construction
      */
     public void throwException() throws ErrorResponseException {
         throw createException();
     }
 
     /**
-     * Creates a {@code ErrorResponseException}.
+     * Creates a localized exception without an underlying cause.
      *
      * @return {@link ErrorResponseException}
      */
@@ -139,8 +155,11 @@ public class ErrorBuilder {
     }
 
     /**
-     * Creates a {@code ErrorResponseException}.
+     * Creates an exception and, if provided, invokes the callback with the context
+     * and new exception before returning it.
      *
+     * @param context caller-defined data passed unchanged to the callback
+     * @param consumer optional callback that can customize the created exception
      * @return {@link ErrorResponseException}
      */
     public ErrorResponseException createException(Object context,
@@ -153,9 +172,12 @@ public class ErrorBuilder {
     }
 
     /**
-     * Creates a {@code ErrorResponseException} with a given cause exception.
+     * Requires a nonblank code, loads and interpolates messages, and creates an exception
+     * with immutable snapshots of the localized messages and placeholder values.
      *
+     * @param cause optional underlying exception to preserve
      * @return {@link ErrorResponseException}
+     * @throws IllegalStateException if the error code is missing or blank
      */
     public ErrorResponseException createException(Exception cause) {
         if (errorCode == null || errorCode.isBlank()) {
@@ -168,6 +190,10 @@ public class ErrorBuilder {
                 Map.copyOf(messages), Map.copyOf(messageVariables));
     }
 
+    /**
+     * Loads Spanish and English templates for the code, falling back to the explicit
+     * message or INTERNAL_ERROR, then applies caller-provided locale overrides.
+     */
     private Map<String, String> loadMessages() {
         Map<String, String> messages = new HashMap<>();
         for (String language : SUPPORTED_LANGUAGES) {
@@ -182,6 +208,7 @@ public class ErrorBuilder {
         return messages;
     }
 
+    /** Replaces each configured {key} placeholder with its value, leaving unknown placeholders unchanged. */
     private String interpolate(String template) {
         String message = template;
         for (Map.Entry<String, String> variable : messageVariables.entrySet()) {

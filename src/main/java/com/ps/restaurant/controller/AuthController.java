@@ -26,6 +26,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.RequiredArgsConstructor;
 
+/** Exposes account registration and username-or-email login endpoints. */
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -35,6 +36,10 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
+    /**
+     * Rejects duplicate identifiers, hashes the password, and saves an active user
+     * with the supplied role before returning HTTP 201.
+     */
     @PostMapping("/register")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Usuario creado",
@@ -55,15 +60,20 @@ public class AuthController {
                     .createException();
         }
         User user = new User();
-        user.setName(req.name());
-        user.setSurName(req.surName());
+        user.setFullName(req.fullName());
+        user.setRole(req.role());
         user.setEmail(req.email());
         user.setUser(req.user());
+        user.setActive(true);
         user.setPassword(passwordEncoder.encode(req.password()));
         userRepository.save(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Usuario creado"));
     }
 
+    /**
+     * Looks up a user by username or email, verifies the password, and returns a JWT
+     * with a password-free profile; missing users and password mismatches raise localized errors.
+     */
     @PostMapping("/login")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Inicio de sesión exitoso",
@@ -74,18 +84,18 @@ public class AuthController {
                             schema = @Schema(implementation = ApiError.class)))
     })
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest req) {
-        User user = userRepository.findByUserOrEmail(req.user())
+        User u = userRepository.findByUserOrEmail(req.user())
                 .orElseThrow(() -> new ErrorBuilder("AUTH_USER_NOT_FOUND", "AuthController.login")
                         .statusCode(HttpStatus.UNAUTHORIZED)
                         .createException());
-        if (!passwordEncoder.matches(req.password(), user.getPassword())) {
+        if (!passwordEncoder.matches(req.password(), u.getPassword())) {
             throw new ErrorBuilder("AUTH_INVALID_PASSWORD", "AuthController.login")
                     .statusCode(HttpStatus.UNAUTHORIZED)
                     .createException();
         }
         return ResponseEntity.ok(new LoginResponse(
-                jwtService.generateToken(user.getEmail()),
-                new UserResponse(user.getId(), user.getEmail(), user.getUser(), user.getName(), user.getSurName())));
+                jwtService.generateToken(u.getEmail()),
+                new UserResponse(u.getId(), u.getEmail(), u.getUser(), u.getFullName(), u.getRole(), u.isActive())));
     }
     
 }

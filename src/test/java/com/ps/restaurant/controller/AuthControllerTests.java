@@ -31,9 +31,11 @@ import com.ps.restaurant.config.JwtService;
 import com.ps.restaurant.dto.LoginRequest;
 import com.ps.restaurant.dto.LoginResponse;
 import com.ps.restaurant.dto.UserRequest;
+import com.ps.restaurant.model.Role;
 import com.ps.restaurant.model.User;
 import com.ps.restaurant.repository.UserRepository;
 
+/** Tests registration and login with mocked dependencies and standalone MVC error serialization. */
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTests {
 
@@ -49,6 +51,7 @@ class AuthControllerTests {
     private AuthController controller;
     private MockMvc mockMvc;
 
+    /** Builds a fresh controller and MVC harness with mocked services and the structured-error advice. */
     @BeforeEach
     void setUp() {
         controller = new AuthController(userRepository, passwordEncoder, jwtService);
@@ -57,9 +60,10 @@ class AuthControllerTests {
                 .build();
     }
 
+    /** Captures the saved account to verify profile fields, activation, role, and password hashing. */
     @Test
     void registerSavesAllUserFieldsAndEncodesPassword() {
-        UserRequest request = new UserRequest("ana@example.com", "password", "ana", "Ana", "Pérez");
+        UserRequest request = new UserRequest("ana@example.com", "password", "ana", "Ana Pérez", existingRole());
         when(passwordEncoder.encode(request.password())).thenReturn("encoded-password");
 
         ResponseEntity<?> response = controller.register(request);
@@ -71,15 +75,17 @@ class AuthControllerTests {
         assertThat(savedUser.getValue()).satisfies(user -> {
             assertThat(user.getEmail()).isEqualTo(request.email());
             assertThat(user.getUser()).isEqualTo(request.user());
-            assertThat(user.getName()).isEqualTo(request.name());
-            assertThat(user.getSurName()).isEqualTo(request.surName());
+            assertThat(user.getFullName()).isEqualTo(request.fullName());
+            assertThat(user.getRole()).isEqualTo(request.role());
+            assertThat(user.isActive()).isTrue();
             assertThat(user.getPassword()).isEqualTo("encoded-password");
         });
     }
 
+    /** Verifies duplicate emails produce a localized HTTP 409 response without saving or hashing. */
     @Test
     void registerRejectsDuplicateEmail() throws Exception {
-        UserRequest request = new UserRequest("ana@example.com", "password", "ana", "Ana", "Pérez");
+        UserRequest request = new UserRequest("ana@example.com", "password", "ana", "Ana Pérez", existingRole());
         when(userRepository.existsByEmail(request.email())).thenReturn(true);
 
         mockMvc.perform(post("/api/auth/register")
@@ -97,9 +103,10 @@ class AuthControllerTests {
         verifyNoInteractions(passwordEncoder, jwtService);
     }
 
+    /** Verifies duplicate usernames produce a localized HTTP 409 response without saving or hashing. */
     @Test
     void registerRejectsDuplicateUsername() throws Exception {
-        UserRequest request = new UserRequest("ana@example.com", "password", "ana", "Ana", "Pérez");
+        UserRequest request = new UserRequest("ana@example.com", "password", "ana", "Ana Pérez", existingRole());
         when(userRepository.findByUserOrEmail(request.user())).thenReturn(Optional.of(existingUser()));
 
         mockMvc.perform(post("/api/auth/register")
@@ -114,6 +121,7 @@ class AuthControllerTests {
         verifyNoInteractions(passwordEncoder, jwtService);
     }
 
+    /** Checks username-based authentication, issued token, and all returned password-free profile fields. */
     @Test
     void loginAuthenticatesByUsernameAndReturnsCorrectUserFields() {
         User user = existingUser();
@@ -132,12 +140,14 @@ class AuthControllerTests {
             assertThat(result.getId()).isEqualTo(user.getId());
             assertThat(result.getEmail()).isEqualTo(user.getEmail());
             assertThat(result.getUser()).isEqualTo(user.getUser());
-            assertThat(result.getName()).isEqualTo(user.getName());
-            assertThat(result.getSurName()).isEqualTo(user.getSurName());
+            assertThat(result.getFullName()).isEqualTo(user.getFullName());
+            assertThat(result.getRole()).isEqualTo(user.getRole());
+            assertThat(result.isActive()).isTrue();
         });
         verify(userRepository, never()).findByEmail(any());
     }
 
+    /** Checks that the shared identifier lookup also accepts an email address and returns a token. */
     @Test
     void loginAuthenticatesByEmail() {
         User user = existingUser();
@@ -152,6 +162,7 @@ class AuthControllerTests {
         assertThat(response.getBody().token()).isEqualTo("jwt-token");
     }
 
+    /** Checks localized HTTP 401 output for an unknown user without exposing the submitted password. */
     @Test
     void loginRejectsUnknownUsername() throws Exception {
         when(userRepository.findByUserOrEmail("unknown")).thenReturn(Optional.empty());
@@ -174,6 +185,7 @@ class AuthControllerTests {
         verifyNoInteractions(passwordEncoder, jwtService);
     }
 
+    /** Checks password mismatch errors, token-generation avoidance, and omission of sensitive error details. */
     @Test
     void loginRejectsIncorrectPasswordWithoutGeneratingToken() throws Exception {
         User user = existingUser();
@@ -199,20 +211,32 @@ class AuthControllerTests {
         verifyNoInteractions(jwtService);
     }
 
+    /** Supplies the registration JSON payload shared by the MVC conflict tests. */
     private String registrationJson() {
         return """
-                {"email":"ana@example.com","password":"password","user":"ana","name":"Ana","surName":"Pérez"}
+                {"email":"ana@example.com","password":"password","user":"ana","fullName":"Ana Pérez","role":{"id":1}}
                 """;
     }
 
+    /** Creates a reusable active-user fixture with a stored password hash and waiter role. */
     private User existingUser() {
         User user = new User();
-        user.setId("1");
+        user.setId(1L);
         user.setEmail("ana@example.com");
         user.setUser("ana");
         user.setPassword("encoded-password");
-        user.setName("Ana");
-        user.setSurName("Pérez");
+        user.setFullName("Ana Pérez");
+        user.setRole(existingRole());
+        user.setActive(true);
         return user;
+    }
+
+    /** Creates a reusable active waiter-role fixture with an existing identifier. */
+    private Role existingRole() {
+        Role role = new Role();
+        role.setId(1L);
+        role.setName("WAITER");
+        role.setActive(true);
+        return role;
     }
 }

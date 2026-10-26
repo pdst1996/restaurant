@@ -13,8 +13,10 @@ import org.springframework.http.HttpStatus;
 
 import com.ps.restaurant.interfaces.ErrorResponseException;
 
+/** Verifies localized message loading, interpolation, builder isolation, and structured-exception validation. */
 class ErrorBuilderTests {
 
+    /** Checks resource-bundle messages in both languages and the English default for each authentication code. */
     @ParameterizedTest
     @CsvSource({
         "AUTH_USER_NOT_FOUND, El usuario no existe., The user does not exist.",
@@ -35,6 +37,7 @@ class ErrorBuilderTests {
         assertThat(exception.getMessageVariables()).isEmpty();
     }
 
+    /** Checks that default construction initializes mutable maps and supports localized placeholder overrides. */
     @Test
     void initializesMapsInDefaultConstructor() {
         ErrorBuilder builder = new ErrorBuilder();
@@ -50,6 +53,7 @@ class ErrorBuilderTests {
         assertThat(exception.getMessageVariables()).containsEntry("user", "Ana");
     }
 
+    /** Supplies immutable input maps and checks placeholder substitution in localized and default messages. */
     @Test
     void acceptsImmutableNlsMapsAndInterpolatesVariables() {
         ErrorBuilder builder = new ErrorBuilder("CUSTOM_ERROR", "Hello {name}", Map.of("es", "Hola {name}"), "test");
@@ -62,6 +66,7 @@ class ErrorBuilderTests {
         assertThat(exception.getMessage()).isEqualTo("Hello Ana");
     }
 
+    /** Checks that wrapping an underlying cause preserves the application code and localized messages. */
     @Test
     void preservesErrorCodeWhenWrappingCause() {
         Exception cause = new IllegalArgumentException("Internal details");
@@ -74,6 +79,7 @@ class ErrorBuilderTests {
         assertThat(exception.getErrorMessage()).containsEntry("es", "La contraseña es incorrecta.");
     }
 
+    /** Mutates a reused builder and verifies that previously created exception maps remain unchanged. */
     @Test
     void createdExceptionsDoNotChangeWhenBuilderIsReused() {
         ErrorBuilder builder = new ErrorBuilder("AUTH_USER_NOT_FOUND", "test");
@@ -84,6 +90,7 @@ class ErrorBuilderTests {
         assertThat(exception.getMessageVariables()).isEmpty();
     }
 
+    /** Checks that an unknown code retains its identity while using each language's internal-error fallback. */
     @Test
     void unknownErrorCodeUsesLocalizedFallback() {
         ErrorResponseException exception = new ErrorBuilder("UNKNOWN_ERROR", "test").createException();
@@ -93,6 +100,7 @@ class ErrorBuilderTests {
                 .containsEntry("en", "An internal error occurred.");
     }
 
+    /** Uses the callback context to customize the created exception without changing its application code. */
     @Test
     void supportsContextCallback() {
         ErrorResponseException exception = new ErrorBuilder("AUTH_USER_NOT_FOUND", "test")
@@ -102,6 +110,7 @@ class ErrorBuilderTests {
         assertThat(exception.getErrorCode()).isEqualTo("AUTH_USER_NOT_FOUND");
     }
 
+    /** Checks that the convenience method throws a structured exception instead of returning normally. */
     @Test
     void throwExceptionThrowsStructuredError() {
         assertThatThrownBy(() -> new ErrorBuilder("AUTH_USER_NOT_FOUND", "test")
@@ -110,12 +119,14 @@ class ErrorBuilderTests {
                     error -> assertThat(error.getErrorCode()).isEqualTo("AUTH_USER_NOT_FOUND"));
     }
 
+    /** Checks that numeric statuses outside the HTTP error range are rejected. */
     @ParameterizedTest
     @ValueSource(ints = {0, 200, 600})
     void rejectsInvalidErrorStatuses(int status) {
         assertThatThrownBy(() -> new ErrorBuilder().statusCode(status)).isInstanceOf(IllegalArgumentException.class);
     }
 
+    /** Checks that creating an exception without an application error code fails immediately. */
     @Test
     void requiresAnErrorCode() {
         assertThatThrownBy(() -> new ErrorBuilder().createException()).isInstanceOf(IllegalStateException.class);

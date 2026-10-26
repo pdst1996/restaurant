@@ -8,9 +8,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.ps.restaurant.dto.ApiError;
 import com.ps.restaurant.interfaces.ErrorResponseException;
 
+/** Serializes structured application exceptions as API error responses. */
 @RestControllerAdvice
 public class ErrorResponseHandler {
 
+    /** Uses the exception's error status or falls back to 500, preserving its localized error details. */
     @ExceptionHandler(ErrorResponseException.class)
     public ResponseEntity<ApiError> handle(ErrorResponseException exception) {
         Integer configuredStatus = exception.getStatus();

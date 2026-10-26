@@ -15,12 +15,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
+/** Authenticates requests with bearer tokens without creating an HTTP session. */
 @Component 
 @RequiredArgsConstructor 
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
 
+    /**
+     * Validates a bearer token and sets an email-based principal with ROLE_USER
+     * only when no authentication is already present, then continues the chain.
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
