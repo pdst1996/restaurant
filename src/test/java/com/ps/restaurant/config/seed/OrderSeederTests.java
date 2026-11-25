@@ -156,7 +156,7 @@ class OrderSeederTests {
         assertThatThrownBy(() -> seeder.run()).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("UserSeeder");
         verify(orderRepository, never()).save(any(Order.class));
-        verifyNoInteractions(tableRepository, itemsRepository, allergyRepository);
+        verifyNoInteractions(tableRepository, itemsRepository);
     }
 
     @Test

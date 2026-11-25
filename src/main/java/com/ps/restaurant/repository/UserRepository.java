@@ -6,6 +6,7 @@ import java.lang.Long;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,6 +15,7 @@ import com.ps.restaurant.model.User;
 /** Provides user persistence and identifier-based lookups through Spring Data JPA. */
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
     /** Finds a user by email, returning an empty optional when no match exists. */
+    @EntityGraph(attributePaths = {"role", "role.permissions"})
     Optional<User> findByEmail(String email);
 
     /** Finds a user by username, returning an empty optional when no match exists. */
@@ -25,4 +27,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     /** Reports whether an account already uses the supplied email address. */
     boolean existsByEmail(String email);
+
+    boolean existsByRoleNameAndActiveTrue(String name);
+
+    long countByRoleNameAndActiveTrue(String name);
 }

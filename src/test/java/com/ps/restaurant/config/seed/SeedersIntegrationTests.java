@@ -24,7 +24,6 @@ class SeedersIntegrationTests {
     @Autowired private FloorPlanSeeder floorSeeder;
     @Autowired private TableSeeder tableSeeder;
     @Autowired private ItemsSeeder itemsSeeder;
-    @Autowired private AllergySeeder allergySeeder;
     @Autowired private OrderSeeder orderSeeder;
     @Autowired private FloorRepository floors;
     @Autowired private ElementTypeRepository types;
@@ -43,9 +42,9 @@ class SeedersIntegrationTests {
     void seedsEveryModelWithValidRelationshipsAndDoesNotDuplicateOnRerun() {
         assertThat(floors.count()).isEqualTo(3);
         assertThat(types.count()).isEqualTo(6);
-        assertThat(elements.count()).isEqualTo(5);
-        assertThat(tables.count()).isEqualTo(5);
-        assertThat(items.count()).isEqualTo(18);
+        assertThat(elements.count()).isEqualTo(30);
+        assertThat(tables.count()).isEqualTo(19);
+        assertThat(items.count()).isEqualTo(32);
         assertThat(orders.count()).isEqualTo(20);
         assertThat(roles.findAll()).allMatch(Role::isActive);
         assertThat(users.findAll()).allMatch(User::isActive);
@@ -65,7 +64,6 @@ class SeedersIntegrationTests {
         floorSeeder.run();
         tableSeeder.run();
         itemsSeeder.run();
-        allergySeeder.run();
         orderSeeder.run();
 
         assertThat(counts()).isEqualTo(before);

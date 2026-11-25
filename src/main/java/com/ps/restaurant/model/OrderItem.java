@@ -67,6 +67,7 @@ public class OrderItem {
 
     private String notes;
 
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private OrderItemStatus status = OrderItemStatus.PENDING;
 
     @Column(nullable = false, updatable = false)

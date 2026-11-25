@@ -96,7 +96,7 @@ public class AuthController {
                 .orElseThrow(() -> new ErrorBuilder("AUTH_USER_NOT_FOUND", "AuthController.login")
                         .statusCode(HttpStatus.UNAUTHORIZED)
                         .createException());
-        if (!passwordEncoder.matches(req.password(), u.getPassword())) {
+        if (!u.isActive() || !u.getRole().isActive() || !passwordEncoder.matches(req.password(), u.getPassword())) {
             throw new ErrorBuilder("AUTH_INVALID_PASSWORD", "AuthController.login")
                     .statusCode(HttpStatus.UNAUTHORIZED)
                     .createException();

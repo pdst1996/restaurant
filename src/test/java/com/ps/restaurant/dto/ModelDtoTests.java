@@ -127,8 +127,8 @@ class ModelDtoTests {
                         null, OrderStatus.OPEN, true, PRICE, null, null),
                 new OrderRequest("DEFAULTS", 2L, "Ana", null, null, null, false, null, null, null),
                 new OrderItemRequest(1L, 4L, 1, 7L,
-                        List.of(6L, 9L), PRICE, "No salt"),
-                new OrderItemRequest(1L, 4L, 1, 7L, null, BigDecimal.ZERO, null),
+                        List.of(6L, 9L), PRICE, "No salt", null),
+                new OrderItemRequest(1L, 4L, 1, 7L, null, BigDecimal.ZERO, null, null),
                 new PaymentRequest(1L, PRICE, PaymentMethod.CARD));
     }
 
@@ -184,10 +184,10 @@ class ModelDtoTests {
                         OrderStatus.OPEN, true, PRICE, null, null), List.of("orderNumber")),
                 Arguments.of(new OrderRequest("a".repeat(256), 1L, "Ana", null, null,
                         OrderStatus.OPEN, true, PRICE, null, null), List.of("orderNumber")),
-                Arguments.of(new OrderItemRequest(null, null, null, null, null, null, null),
+                Arguments.of(new OrderItemRequest(null, null, null, null, null, null, null, null),
                         List.of("orderId", "itemId", "quantity", "sizeId", "unitPrice")),
                 Arguments.of(new OrderItemRequest(0L, -1L, 0, 0L, List.of(0L),
-                        new BigDecimal("-1.00"), "a".repeat(256)),
+                        new BigDecimal("-1.00"), "a".repeat(256), null),
                         List.of("orderId", "itemId", "quantity", "sizeId", "attributeIds",
                                 "unitPrice", "notes")),
                 Arguments.of(new PaymentRequest(null, null, null), List.of("orderId", "amount", "method")),
@@ -224,7 +224,8 @@ class ModelDtoTests {
 
     private static OrderItemResponse itemResponse() {
         return new OrderItemResponse(5L, 1L, productResponse(), 1, sizeResponse(),
-                List.of(new ItemAttributeResponse(6L, "NO_ONION", NAMES)), PRICE, "No salt", CREATED_AT);
+                List.of(new ItemAttributeResponse(6L, "NO_ONION", NAMES)), PRICE, "No salt", CREATED_AT,
+                com.ps.restaurant.model.OrderItemStatus.PENDING);
     }
 
     private static ItemResponse productResponse() {

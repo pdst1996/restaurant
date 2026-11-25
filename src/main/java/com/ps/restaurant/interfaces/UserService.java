@@ -17,5 +17,7 @@ public interface UserService {
     long countUsers(FilterUserRequest filter);
 
     UserResponse createUser(UserRequest request);
+
+    UserResponse updateUser(Long id, com.ps.restaurant.dto.UserUpdateRequest request);
 }
 

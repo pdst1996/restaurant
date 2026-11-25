@@ -2,6 +2,16 @@ package com.ps.restaurant.service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
+import java.nio.charset.StandardCharsets;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import com.ps.restaurant.config.Permissions;
+import com.ps.restaurant.dto.UserUpdateRequest;
+import com.ps.restaurant.dto.ErrorResponseException;
+import com.ps.restaurant.model.Role;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -35,7 +45,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<UserResponse> filterUsers(FilterUserRequest filter) {
-        return userRepository.findAll(UserSpecifications.withFilters(filter)).stream()
+        return userRepository.findAll(UserSpecifications.withFilters(filter),
+                        PageRequest.of(filter.page() == null ? 0 : filter.page(),
+                                filter.size() == null ? 50 : filter.size(), Sort.by("id"))).stream()
                 .map(UserResponse::from)
                 .toList();
     }
@@ -56,11 +68,59 @@ public class UserServiceImpl implements UserService {
         user.setEmail(request.email());
         user.setUser(request.user());
         user.setFullName(request.fullName());
-        user.setRole(ServiceSupport.requireById(roleRepository,
-                request.role() == null ? null : request.role().id(), "Role"));
-        user.setPassword(passwordEncoder.encode(request.password()));
+        user.setRole(assignableRole(request.role().id()));
+        user.setPassword(encoded(request.password()));
         user.setActive(true);
         return UserResponse.from(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public UserResponse updateUser(Long id, UserUpdateRequest request) {
+        roleRepository.lockAdminRole();
+        User user = ServiceSupport.requireById(userRepository, id, "User");
+        checkGrant(user.getRole());
+        Role next = Objects.equals(user.getRole().getId(), request.role().id())
+                ? user.getRole() : assignableRole(request.role().id());
+        if (user.isActive() && "admin".equals(user.getRole().getName())
+                && (!request.active() || !"admin".equals(next.getName()))
+                && userRepository.countByRoleNameAndActiveTrue("admin") <= 1) {
+            throw new ConflictException("At least one active administrator is required");
+        }
+        for (String identifier : List.of(request.email(), request.user())) {
+            if (userRepository.findByUserOrEmail(identifier).filter(other -> !id.equals(other.getId())).isPresent()) {
+                throw new ConflictException("Email or username already exists");
+            }
+        }
+        user.setEmail(request.email());
+        user.setUser(request.user());
+        user.setFullName(request.fullName());
+        user.setRole(next);
+        user.setActive(request.active());
+        if (request.password() != null) user.setPassword(encoded(request.password()));
+        return UserResponse.from(user);
+    }
+
+    private String encoded(String raw) {
+        if (raw.isBlank() || raw.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new ErrorResponseException(422, "INVALID_PASSWORD", "The password must be nonblank and at most 72 UTF-8 bytes");
+        }
+        return passwordEncoder.encode(raw);
+    }
+
+    private Role assignableRole(Long id) {
+        Role role = ServiceSupport.requireById(roleRepository, id, "Role");
+        checkGrant(role);
+        if (!role.isActive()) throw new ConflictException("Cannot assign an inactive role");
+        return role;
+    }
+
+    private void checkGrant(Role role) {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || Permissions.has(auth, "ROLE_ADMIN")) return;
+        if ("admin".equals(role.getName()) || role.getPermissions().stream().anyMatch(p -> !Permissions.has(auth, p))) {
+            throw new AccessDeniedException("Insufficient permissions to manage this role");
+        }
     }
 }
 

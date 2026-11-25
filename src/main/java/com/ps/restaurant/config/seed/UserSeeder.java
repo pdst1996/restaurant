@@ -8,7 +8,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.ps.restaurant.model.Role;
 import com.ps.restaurant.model.User;
 import com.ps.restaurant.repository.RoleRepository;
 import com.ps.restaurant.repository.UserRepository;
@@ -33,29 +32,8 @@ public class UserSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        createRoles();
+        if (seedPassword.isBlank()) throw new IllegalStateException("RESTAURANT_SAMPLE_PASSWORD is required");
         createUsers();
-    }
-
-    private void createRoles() {
-        createRole("admin");
-        createRole("waiter");
-        createRole("cleaner");
-        createRole("manager");
-        createRole("cocker");
-    }
-
-    private void createRole(String name) {
-        if (roleRepository.existsByName(name)) {
-            log.debug("Seed: role {} already exists", name);
-            return;
-        }
-
-        Role r = new Role();
-        r.setName(name);
-        r.setActive(true);
-        roleRepository.save(r);
-        log.info("Seed: role {} created", name);
     }
 
     private void createUsers() {

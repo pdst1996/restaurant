@@ -18,6 +18,13 @@ public final class UserSpecifications {
     public static Specification<User> withFilters(FilterUserRequest filter) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            if (filter.search() != null && !filter.search().isBlank()) {
+                String pattern = "%" + filter.search().toLowerCase(java.util.Locale.ROOT)
+                        .replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+                predicates.add(cb.or(cb.like(cb.lower(root.get("user")), pattern, '!'),
+                        cb.like(cb.lower(root.get("email")), pattern, '!'),
+                        cb.like(cb.lower(root.get("fullName")), pattern, '!')));
+            }
 
             if (filter.id() != null) {
                 predicates.add(cb.equal(

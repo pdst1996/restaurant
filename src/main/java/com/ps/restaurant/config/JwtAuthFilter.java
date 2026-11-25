@@ -1,13 +1,14 @@
 package com.ps.restaurant.config;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.ArrayList;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import com.ps.restaurant.repository.UserRepository;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -21,9 +22,10 @@ import lombok.RequiredArgsConstructor;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UserRepository users;
 
     /**
-     * Validates a bearer token and sets an email-based principal with ROLE_USER
+     * Resolves current grants from the database on every authenticated request
      * only when no authentication is already present, then continues the chain.
      */
     @Override
@@ -37,9 +39,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (jwtService.isValid(token)
                     && SecurityContextHolder.getContext().getAuthentication() == null) {
                 String email = jwtService.extractEmail(token);
-                var auth = new UsernamePasswordAuthenticationToken(
-                    email, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                users.findByEmail(email).filter(u -> u.isActive() && u.getRole().isActive()).ifPresent(u -> {
+                    var authorities = new ArrayList<>(u.getRole().getPermissions().stream()
+                            .map(SimpleGrantedAuthority::new).toList());
+                    if ("admin".equals(u.getRole().getName())) authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                    SecurityContextHolder.getContext().setAuthentication(
+                            new UsernamePasswordAuthenticationToken(email, null, authorities));
+                });
             }
         }
         chain.doFilter(request, response);

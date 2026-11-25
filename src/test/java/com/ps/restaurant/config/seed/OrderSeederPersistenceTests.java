@@ -102,7 +102,7 @@ class OrderSeederPersistenceTests {
         entityManager.persist(allergy);
 
         Role role = new Role();
-        role.setName("waiter");
+        role.setName("fixture-waiter");
         entityManager.persist(role);
         User waiter = new User();
         waiter.setUser("poncho");

@@ -17,5 +17,7 @@ public interface RoleService {
     long countRoles(FilterRoleRequest filter);
 
     RoleResponse createRole(RoleRequest request);
+
+    RoleResponse updateRole(Long id, RoleRequest request);
 }
 
