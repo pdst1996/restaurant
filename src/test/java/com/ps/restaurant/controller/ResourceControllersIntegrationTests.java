@@ -326,13 +326,13 @@ class ResourceControllersIntegrationTests {
     }
 
     @Test
-    void createsOrderWithTableAllergiesAndExplicitStatusAndTotal() throws Exception {
+    void createsOpenOrderWithTableAllergiesAndIgnoresClientTotal() throws Exception {
         Allergy allergy = new Allergy();
         allergy.setAllergyKey("NUTS");
         allergy.setDisplayName(Map.of("es", "Nueces"));
         entityManager.persist(allergy);
         String request = body("order").replace("\"togo\":true",
-                "\"togo\":false,\"status\":\"CONFIRMED\",\"total\":25.00,\"tableId\":" + table.getId()
+                "\"togo\":false,\"status\":\"OPEN\",\"total\":25.00,\"tableId\":" + table.getId()
                         + ",\"allergyIds\":[" + allergy.getId() + "," + allergy.getId() + "]");
         mvc.perform(post(path("order")).contentType(MediaType.APPLICATION_JSON).content(request))
                 .andExpect(status().isOk())
@@ -340,8 +340,8 @@ class ResourceControllersIntegrationTests {
                 .andExpect(jsonPath("$.user.id").value(waiter.getId()))
                 .andExpect(jsonPath("$.allergies.length()").value(1))
                 .andExpect(jsonPath("$.allergies[0].allergyKey").value("NUTS"))
-                .andExpect(jsonPath("$.status").value("CONFIRMED"))
-                .andExpect(jsonPath("$.total").value(25.00));
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                .andExpect(jsonPath("$.total").value(0));
     }
 
     @ParameterizedTest

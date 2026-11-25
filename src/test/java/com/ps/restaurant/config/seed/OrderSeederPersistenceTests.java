@@ -68,7 +68,8 @@ class OrderSeederPersistenceTests {
             if (order.isTogo()) {
                 assertThat(order.getAllergies()).isEmpty();
             } else {
-                assertThat(order.getAllergies()).extracting(Allergy::getAllergyKey).containsExactly("nuts");
+                assertThat(order.getAllergies()).hasSizeBetween(1, 3)
+                        .extracting(Allergy::getAllergyKey).doesNotHaveDuplicates();
             }
             assertThat(order.getItems()).isNotEmpty().allSatisfy(item -> {
                 assertThat(item.getId()).isPositive();

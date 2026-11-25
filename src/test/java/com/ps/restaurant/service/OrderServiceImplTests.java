@@ -47,7 +47,7 @@ class OrderServiceImplTests {
 
     @BeforeEach
     void setUp() {
-        service = new OrderServiceImpl(allergyRepository, orderRepository, userRepository, tableRepository);
+        service = new OrderServiceImpl(allergyRepository, orderRepository, userRepository, tableRepository, null);
     }
 
     @Test

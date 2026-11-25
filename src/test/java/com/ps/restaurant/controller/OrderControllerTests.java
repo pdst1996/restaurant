@@ -52,7 +52,7 @@ class OrderControllerTests {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new OrderController(orderService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new OrderController(orderService, null))
                 .setControllerAdvice(new GlobalExceptionHandler(new ErrorResponseHandler()), new ErrorResponseHandler())
                 .build();
     }

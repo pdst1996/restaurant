@@ -3,17 +3,21 @@ package com.ps.restaurant.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ps.restaurant.dto.ErrorResponseException.ConflictException;
+import com.ps.restaurant.dto.ErrorResponseException;
 import com.ps.restaurant.dto.OrderRequest;
 import com.ps.restaurant.dto.OrderResponse;
 import com.ps.restaurant.dto.filters.FilterOrderRequest;
 import com.ps.restaurant.interfaces.OrderService;
 import com.ps.restaurant.model.Allergy;
 import com.ps.restaurant.model.Order;
+import com.ps.restaurant.model.OrderStatus;
 import com.ps.restaurant.model.Table;
 import com.ps.restaurant.model.User;
 import com.ps.restaurant.repository.AllergyRepository;
@@ -33,6 +37,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final TableRepository tableRepository;
+    private final OrderWorkflow workflow;
 
     @Override
     public Optional<Order> getOrderById(Long id) {
@@ -44,7 +49,13 @@ public class OrderServiceImpl implements OrderService {
 
         ServiceSupport.validateDateRange(filter.fromDate(), filter.toDate());
 
-        return orderRepository.findAll(OrderSpecifications.withFilters(filter)).stream()
+        var specification = OrderSpecifications.withFilters(filter);
+        var orders = filter.page() == null && filter.size() == null
+                ? orderRepository.findAll(specification)
+                : orderRepository.findAll(specification, PageRequest.of(
+                        filter.page() == null ? 0 : filter.page(), filter.size() == null ? 50 : filter.size(),
+                        Sort.by(Sort.Direction.DESC, "id"))).getContent();
+        return orders.stream()
                 .map(OrderResponse::from)
                 .toList();
     }
@@ -62,6 +73,7 @@ public class OrderServiceImpl implements OrderService {
             throw new ConflictException("Order with this orderNumber already exists");
         }
         User waiter = ServiceSupport.requireById(userRepository, orderRequest.waiterId(), "Waiter");
+        workflow.enforceOwnership(waiter);
         Table table = orderRequest.tableId() == null ? null
                 : ServiceSupport.requireById(tableRepository, orderRequest.tableId(), "Table");
 
@@ -76,17 +88,19 @@ public class OrderServiceImpl implements OrderService {
         order.setCustomer(orderRequest.customer());
         order.setOrderNumber(orderRequest.orderNumber());
         order.setTogo(orderRequest.togo());
-        if (orderRequest.total() != null) {
-            order.setTotal(orderRequest.total());
-        }
-        if (orderRequest.status() != null) {
-            order.setStatus(orderRequest.status());
+        if (orderRequest.status() != null && orderRequest.status() != OrderStatus.DRAFT) {
+            if (orderRequest.status() != OrderStatus.OPEN) {
+                throw new ErrorResponseException(422, "INVALID_INITIAL_ORDER_STATUS", "Initial status must be DRAFT or OPEN");
+            }
+            order.setStatus(OrderStatus.OPEN);
         }
         order.setOtherAllergies(orderRequest.otherAllergies());
         order.setNotes(orderRequest.notes());
         order.setTable(table);
         order.setWaiter(waiter);
-        return OrderResponse.from(orderRepository.save(order));
+        orderRepository.save(order);
+        workflow.created(order);
+        return OrderResponse.from(order);
     }
 
     @Override
@@ -94,7 +108,8 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse updateOrder(Long id, OrderRequest orderRequest) {
 
         // 1. Retrieve the existing order
-        Order order = ServiceSupport.requireById(orderRepository, id, "Order");
+        Order order = workflow.lock(id);
+        workflow.requireEditable(order);
 
         // 2. Validate order number uniqueness (excluding current order)
         orderRepository.findByOrderNumber(orderRequest.orderNumber())
@@ -109,6 +124,7 @@ public class OrderServiceImpl implements OrderService {
                 userRepository,
                 orderRequest.waiterId(),
                 "Waiter");
+        workflow.enforceOwnership(waiter);
 
         // 4. Retrieve table (nullable)
         Table table = orderRequest.tableId() == null
@@ -138,19 +154,18 @@ public class OrderServiceImpl implements OrderService {
         order.setCustomer(orderRequest.customer());
         order.setOrderNumber(orderRequest.orderNumber());
         order.setTogo(orderRequest.togo());
-        if (orderRequest.total() != null) {
-            order.setTotal(orderRequest.total());
-        }
-        if (orderRequest.status() != null) {
-            order.setStatus(orderRequest.status());
+        if (orderRequest.status() != null && orderRequest.status() != order.getStatus()
+                && !(order.getStatus() == OrderStatus.DRAFT && orderRequest.status() == OrderStatus.OPEN)) {
+            throw new ErrorResponseException(422, "USE_ORDER_ACTION", "Use a dedicated action to change this order status");
         }
         order.setOtherAllergies(orderRequest.otherAllergies());
         order.setNotes(orderRequest.notes());
         order.setTable(table);
         order.setWaiter(waiter);
-
-        // 7. Persist changes
-        return OrderResponse.from(orderRepository.save(order));
+        if (order.getStatus() == OrderStatus.DRAFT && orderRequest.status() == OrderStatus.OPEN) {
+            workflow.apply(order, OrderStatus.OPEN, null);
+        }
+        return OrderResponse.from(order);
     }
 
 }

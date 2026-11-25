@@ -37,6 +37,7 @@ public class RolesSeeder implements CommandLineRunner {
                 created.setActive(true);
                 return created;
             });
+            if ("admin".equals(name)) role.getPermissions().addAll(Permissions.ALL);
             if (!role.isPermissionsInitialized()) {
                 role.getPermissions().addAll(Permissions.defaults(name));
                 role.setPermissionsInitialized(true);

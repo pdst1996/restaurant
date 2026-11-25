@@ -10,6 +10,7 @@ public final class Permissions {
     public static final String ORDER_VIEW = "orders:view";
     public static final String ORDER_CREATE = "orders:create";
     public static final String ORDER_EDIT = "orders:edit";
+    public static final String ORDER_ASSIGN = "orders:assign";
     public static final String ORDER_STATUS = "orders:update_status";
     public static final String ORDER_PREPARE = "orders:prepare";
     public static final String ORDER_SERVE = "orders:serve";
@@ -26,7 +27,7 @@ public final class Permissions {
     public static final String FLOOR_MANAGE = "floor:manage";
     public static final String REPORT_VIEW = "reports:view";
 
-    public static final Set<String> ALL = Set.of(ORDER_VIEW, ORDER_CREATE, ORDER_EDIT, ORDER_STATUS,
+    public static final Set<String> ALL = Set.of(ORDER_VIEW, ORDER_CREATE, ORDER_EDIT, ORDER_ASSIGN, ORDER_STATUS,
             ORDER_PREPARE, ORDER_SERVE, ORDER_COMPLETE, ORDER_CANCEL, PAYMENT_VIEW, PAYMENT_CREATE,
             PAYMENT_REFUND, USER_MANAGE, ROLE_MANAGE, ITEM_VIEW, ITEM_MANAGE, FLOOR_VIEW, FLOOR_MANAGE, REPORT_VIEW);
 
