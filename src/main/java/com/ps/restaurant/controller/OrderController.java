@@ -16,6 +16,7 @@ import com.ps.restaurant.dto.filters.FilterOrderRequest;
 import com.ps.restaurant.interfaces.OrderService;
 import com.ps.restaurant.dto.OrderTransitionRequest;
 import com.ps.restaurant.dto.OperationReasonRequest;
+import com.ps.restaurant.dto.OrderBalanceResponse;
 import com.ps.restaurant.model.OrderStatusChange;
 import com.ps.restaurant.service.OrderWorkflow;
 
@@ -33,6 +34,11 @@ public class OrderController {
     private final OrderService orderService;
 
     private final OrderWorkflow workflow;
+
+    @GetMapping("/{id}/balance")
+    public OrderBalanceResponse balance(@PathVariable Long id) {
+        return workflow.balance(id);
+    }
 
     @PostMapping("/{id}/status")
     public OrderResponse changeStatus(@PathVariable Long id, @Valid @RequestBody OrderTransitionRequest request) {

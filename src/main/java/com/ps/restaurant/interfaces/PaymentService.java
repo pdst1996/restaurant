@@ -16,6 +16,8 @@ public interface PaymentService {
 
     long countPayments(FilterPaymentRequest filter);
 
-    PaymentResponse createPayment(PaymentRequest request);
+    PaymentResponse createPayment(PaymentRequest request, String idempotencyKey);
+
+    PaymentResponse refund(Long id, String reason);
 }
 

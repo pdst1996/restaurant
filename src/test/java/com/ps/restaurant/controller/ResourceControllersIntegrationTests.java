@@ -129,7 +129,7 @@ class ResourceControllersIntegrationTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"table", "category", "allergy", "item-attribute", "item-size", "role", "user", "item", "order-item", "payment", "order", "floor", "element-type", "plan-element"})
+    @ValueSource(strings = {"table", "category", "allergy", "item-attribute", "item-size", "role", "user", "item", "order-item", "order", "floor", "element-type", "plan-element"})
     void createsListsFiltersAndCountsEveryResource(String resource) throws Exception {
         String response = mvc.perform(post(path(resource)).contentType(MediaType.APPLICATION_JSON)
                         .content(body(resource)))
@@ -425,9 +425,19 @@ class ResourceControllersIntegrationTests {
     @ParameterizedTest
     @ValueSource(strings = {"payment", "order-item"})
     void filtersByInclusiveAndOpenEndedDates(String resource) throws Exception {
-        String response = mvc.perform(post(path(resource)).contentType(MediaType.APPLICATION_JSON).content(body(resource)))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        long id = JSON.readTree(response).get("id").asLong();
+        long id;
+        if (resource.equals("payment")) {
+            Payment payment = new Payment();
+            payment.setOrder(order);
+            payment.setAmount(new BigDecimal("12.50"));
+            payment.setMethod(com.ps.restaurant.model.PaymentMethod.CARD);
+            entityManager.persist(payment);
+            id = payment.getId();
+        } else {
+            String response = mvc.perform(post(path(resource)).contentType(MediaType.APPLICATION_JSON).content(body(resource)))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            id = JSON.readTree(response).get("id").asLong();
+        }
         entityManager.flush();
         entityManager.clear();
         Instant createdAt = resource.equals("payment")

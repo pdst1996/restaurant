@@ -56,7 +56,7 @@ public class OrderServiceImpl implements OrderService {
                         filter.page() == null ? 0 : filter.page(), filter.size() == null ? 50 : filter.size(),
                         Sort.by(Sort.Direction.DESC, "id"))).getContent();
         return orders.stream()
-                .map(OrderResponse::from)
+                .map(workflow::response)
                 .toList();
     }
 
@@ -84,6 +84,7 @@ public class OrderServiceImpl implements OrderService {
             }
         }
         Order order = new Order();
+        workflow.initializeAmounts(order);
         order.setAllergies(allergies);
         order.setCustomer(orderRequest.customer());
         order.setOrderNumber(orderRequest.orderNumber());
@@ -100,7 +101,7 @@ public class OrderServiceImpl implements OrderService {
         order.setWaiter(waiter);
         orderRepository.save(order);
         workflow.created(order);
-        return OrderResponse.from(order);
+        return workflow.response(order);
     }
 
     @Override
@@ -165,7 +166,7 @@ public class OrderServiceImpl implements OrderService {
         if (order.getStatus() == OrderStatus.DRAFT && orderRequest.status() == OrderStatus.OPEN) {
             workflow.apply(order, OrderStatus.OPEN, null);
         }
-        return OrderResponse.from(order);
+        return workflow.response(order);
     }
 
 }

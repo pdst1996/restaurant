@@ -100,6 +100,51 @@ class PermissionMvcTests {
                 .andExpect(jsonPath("$[2].fromStatus").value("OPEN"))
                 .andExpect(jsonPath("$[2].toStatus").value("PREPARING"))
                 .andExpect(jsonPath("$[2].actorId").value(cookId));
+
+        String cashier = token("cajero");
+        mvc.perform(get(path + "/balance").header("Authorization", cashier))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.balance").value(100));
+        String cash = "{\"orderId\":" + id + ",\"amount\":40,\"method\":\"CASH\",\"tip\":5,\"cashReceived\":50}";
+        String cashJson = pay(cashier, "cash-01", cash)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.change").value(5))
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andReturn().getResponse().getContentAsString();
+        long paymentId = JsonMapper.builder().build().readTree(cashJson).get("id").asLong();
+        pay(cashier, "cash-01", cash).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(paymentId));
+        pay(cashier, "cash-01", cash.replace("\"amount\":40", "\"amount\":41")).andExpect(status().isConflict());
+        mvc.perform(get(path + "/balance").header("Authorization", cashier))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.balance").value(60))
+                .andExpect(jsonPath("$.paid").value(40)).andExpect(jsonPath("$.tip").value(5));
+        mvc.perform(get("/payment/payments/count").param("orderId", String.valueOf(id)).header("Authorization", cashier))
+                .andExpect(status().isOk()).andExpect(jsonPath("$").value(1));
+
+        String card = "{\"orderId\":" + id + ",\"amount\":60,\"method\":\"CARD\"}";
+        pay(cashier, "overpay-01", card.replace("\"amount\":60", "\"amount\":61")).andExpect(status().isConflict());
+        pay(cashier, "mock-decline", card.replace("}", ",\"mockOutcome\":\"DECLINE\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("FAILED"));
+        pay(cashier, "card-01", card).andExpect(status().isOk()).andExpect(jsonPath("$.externalReference").isString());
+        mvc.perform(post(path + "/complete").header("Authorization", cashier))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PAID"));
+        String refundPath = "/payment/payments/" + paymentId + "/refund";
+        String refund = "{\"reason\":\"Customer request\"}";
+        mvc.perform(post(refundPath).header("Authorization", cashier).contentType(MediaType.APPLICATION_JSON)
+                .content(refund)).andExpect(status().isForbidden());
+        String manager = token("gerente");
+        mvc.perform(post(refundPath).header("Authorization", manager).contentType(MediaType.APPLICATION_JSON)
+                .content(refund)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("REFUNDED"))
+                .andExpect(jsonPath("$.refundReason").value("Customer request"))
+                .andExpect(jsonPath("$.refundedBy").isNumber()).andExpect(jsonPath("$.refundedAt").exists());
+        mvc.perform(get(path + "/balance").header("Authorization", cashier))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.balance").value(40))
+                .andExpect(jsonPath("$.tip").value(0));
+        mvc.perform(get("/order/orders").param("id", String.valueOf(id)).header("Authorization", cook))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value("SERVED"))
+                .andExpect(jsonPath("$[0].payments").isEmpty());
+    }
+
+    private org.springframework.test.web.servlet.ResultActions pay(String token, String key, String body) throws Exception {
+        return mvc.perform(post("/payment/payments").header("Authorization", token).header("Idempotency-Key", key)
+                .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
     private org.springframework.test.web.servlet.ResultActions transition(String path, String token, String next) throws Exception {

@@ -26,6 +26,10 @@ public record OrderResponse(
         String notes) {
 
     public static OrderResponse from(Order order) {
+        return from(order, true);
+    }
+
+    public static OrderResponse from(Order order, boolean includePayments) {
         return new OrderResponse(
                 order.getId(),
                 order.getOrderNumber(),
@@ -34,7 +38,7 @@ public record OrderResponse(
                 order.getAllergies().stream().map(AllergyResponse::from).toList(),
                 order.getTable() == null ? null : TableResponse.from(order.getTable()),
                 order.getItems().stream().map(OrderItemResponse::from).toList(),
-                order.getPayments().stream().map(PaymentResponse::from).toList(),
+                includePayments ? order.getPayments().stream().map(PaymentResponse::from).toList() : List.of(),
                 order.getStatus(),
                 order.isTogo(),
                 order.getTotal(),

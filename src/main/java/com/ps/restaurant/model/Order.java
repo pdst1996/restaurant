@@ -91,6 +91,9 @@ public class Order {
     @Column(nullable = true)
     private BigDecimal total = BigDecimal.ZERO;
 
+    @Column(precision = 5, scale = 4)
+    private BigDecimal taxRate;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 }

@@ -43,11 +43,14 @@ class OrderServiceImplTests {
     @Mock
     private TableRepository tableRepository;
 
+    @Mock
+    private OrderWorkflow workflow;
+
     private OrderServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new OrderServiceImpl(allergyRepository, orderRepository, userRepository, tableRepository, null);
+        service = new OrderServiceImpl(allergyRepository, orderRepository, userRepository, tableRepository, workflow);
     }
 
     @Test
@@ -80,6 +83,7 @@ class OrderServiceImplTests {
         order.setWaiter(waiter);
         List<Order> orders = List.of(order);
         when(orderRepository.findAll(ArgumentMatchers.<Specification<Order>>any())).thenReturn(orders);
+        when(workflow.response(order)).thenReturn(OrderResponse.from(order));
 
         assertThat(service.filterOrders(filter(null, null))).containsExactly(OrderResponse.from(order));
         verify(orderRepository).findAll(ArgumentMatchers.<Specification<Order>>any());
