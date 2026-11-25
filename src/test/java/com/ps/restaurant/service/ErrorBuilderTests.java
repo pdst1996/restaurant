@@ -11,7 +11,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpStatus;
 
-import com.ps.restaurant.interfaces.ErrorResponseException;
+import com.ps.restaurant.dto.ErrorResponseException;
 
 /** Verifies localized message loading, interpolation, builder isolation, and structured-exception validation. */
 class ErrorBuilderTests {
@@ -75,8 +75,41 @@ class ErrorBuilderTests {
                 .createException(cause);
 
         assertThat(exception.getCause()).isSameAs(cause);
+        assertThat(exception.getStackTraceObj()).isEqualTo(cause.getStackTrace());
         assertThat(exception.getErrorCode()).isEqualTo("AUTH_INVALID_PASSWORD");
         assertThat(exception.getErrorMessage()).containsEntry("es", "La contraseña es incorrecta.");
+    }
+
+    @Test
+    void copiesExplicitStackTraceIntoCreatedException() {
+        Exception cause = new IllegalArgumentException("Invalid JSON");
+        StackTraceElement[] trace = cause.getStackTrace();
+
+        ErrorResponseException exception = new ErrorBuilder("MALFORMED_JSON", "/api/order/orders", trace)
+                .statusCode(400)
+                .createException(cause);
+
+        assertThat(exception.getStackTraceObj()).isSameAs(trace);
+        assertThat(exception.getCause()).isSameAs(cause);
+        assertThat(exception.getOrigin()).isEqualTo("/api/order/orders");
+    }
+
+    @Test
+    void keepsStackTraceAbsentWhenNoDiagnosticsWereProvided() {
+        ErrorResponseException exception = new ErrorBuilder("AUTH_INVALID_PASSWORD", "test").createException();
+
+        assertThat(exception.getStackTraceObj()).isNull();
+    }
+
+    @Test
+    void preservesExplicitDefaultMessageAndOrigin() {
+        ErrorResponseException exception = new ErrorBuilder("CUSTOM_ERROR", "Hello {name}", "test")
+                .addMessageVariable("name", "Ana")
+                .createException();
+
+        assertThat(exception.getMessage()).isEqualTo("Hello Ana");
+        assertThat(exception.getOrigin()).isEqualTo("test");
+        assertThat(exception.getStackTraceObj()).isNull();
     }
 
     /** Mutates a reused builder and verifies that previously created exception maps remain unchanged. */

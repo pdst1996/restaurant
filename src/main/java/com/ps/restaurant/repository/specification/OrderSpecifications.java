@@ -49,8 +49,7 @@ public final class OrderSpecifications {
                 );
             }
 
-            if (filter.waiterId() != null
-                    && !filter.waiterId().isBlank()) {
+            if (filter.waiterId() != null) {
                 predicates.add(
                     cb.equal(
                         root.get("waiter").get("id"),

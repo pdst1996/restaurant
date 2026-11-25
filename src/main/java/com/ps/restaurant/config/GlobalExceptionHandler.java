@@ -1,6 +1,10 @@
 package com.ps.restaurant.config;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -9,58 +13,76 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.ps.restaurant.controller.ErrorResponseHandler;
 import com.ps.restaurant.dto.ApiError;
-import com.ps.restaurant.dto.ApiException;
+import com.ps.restaurant.dto.ErrorResponseException;
 import com.ps.restaurant.service.ErrorBuilder;
 
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
- * Replaces selected MVC and API exceptions with localized structured exceptions.
- * Exceptions thrown here are not automatically dispatched to another exception handler.
+ * Returns localized structured responses for selected MVC and API exceptions.
  */
 @RestControllerAdvice 
-@Slf4j 
+@Order(Ordered.HIGHEST_PRECEDENCE)
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
 
-    /** Throws an API_EXCEPTION error with HTTP 403 and the request URI, regardless of the original status. */
-    @ExceptionHandler (ApiException.class)
-    public ResponseEntity<ApiError> handleApi(ApiException ex, HttpServletRequest req) {
-        throw new ErrorBuilder("API_EXCEPTION", req.getRequestURI())
-                    .statusCode(HttpStatus.FORBIDDEN)
-                    .createException();
+    private final ErrorResponseHandler errorResponseHandler;
+
+    /** Preserves the API exception's status, code, and message in a structured response. */
+    @ExceptionHandler (ErrorResponseException.class)
+    public ResponseEntity<ApiError> handleApi(ErrorResponseException ex, HttpServletRequest req) {
+        if (ex.getErrorMessage() != null && !ex.getErrorMessage().isEmpty()) {
+            return errorResponseHandler.handle(ex);
+        }
+        return errorResponseHandler.handle(new ErrorBuilder(ex.getErrorCode(), ex.getMessage(), req.getRequestURI())
+                    .statusCode(ex.getStatus())
+                    .createException(ex));
     }
 
-    /** Replaces argument validation failures with a localized HTTP 400 validation exception. */
+    /** Returns a localized HTTP 400 response for argument validation failures. */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest req) {
-        throw new ErrorBuilder("VALIDATION_EXCEPTION", req.getRequestURI())
+        return errorResponseHandler.handle(new ErrorBuilder("VALIDATION_EXCEPTION", req.getRequestURI(), ex.getStackTrace())
                     .statusCode(HttpStatus.BAD_REQUEST)
-                    .createException();
+                    .createException(ex));
     }
 
-    /** Replaces unreadable request bodies with a localized HTTP 400 malformed-body exception. */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest req) {
+        return errorResponseHandler.handle(new ErrorBuilder("VALIDATION_EXCEPTION", req.getRequestURI(), ex.getStackTrace())
+                .statusCode(HttpStatus.BAD_REQUEST).createException(ex));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleIntegrity(DataIntegrityViolationException ex, HttpServletRequest req) {
+        return errorResponseHandler.handle(new ErrorBuilder("CONFLICT", req.getRequestURI(), ex.getStackTrace())
+                .statusCode(HttpStatus.CONFLICT).createException(ex));
+    }
+
+    /** Returns a localized HTTP 400 response for unreadable request bodies. */
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiError> handleUnreadable(HttpServletRequest req) {
-        throw new ErrorBuilder("MALFORMED_JSON", req.getRequestURI())
+    public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException ex, HttpServletRequest req) {
+        return errorResponseHandler.handle(new ErrorBuilder("MALFORMED_JSON", req.getRequestURI(), ex.getStackTrace())
                     .statusCode(HttpStatus.BAD_REQUEST)
-                    .createException();
+                    .createException(ex));
     }
 
-    /** Replaces Spring Security access-denied failures with a localized HTTP 403 exception. */
+    /** Returns a localized HTTP 403 response for access-denied failures. */
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiError> handleDenied(HttpServletRequest req) {
-        throw new ErrorBuilder("FORBIDDEN", req.getRequestURI())
+    public ResponseEntity<ApiError> handleDenied(AccessDeniedException ex, HttpServletRequest req) {
+        return errorResponseHandler.handle(new ErrorBuilder("FORBIDDEN", req.getRequestURI(), ex.getStackTrace())
                     .statusCode(HttpStatus.FORBIDDEN)
-                    .createException();
+                    .createException(ex));
     }
 
-    /** Replaces missing MVC resources with a localized HTTP 404 exception. */
+    /** Returns a localized HTTP 404 response for missing MVC resources. */
     @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<ApiError> handleNoResource(HttpServletRequest req) {
-        throw new ErrorBuilder("NOT_FOUND", req.getRequestURI())
+    public ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex, HttpServletRequest req) {
+        return errorResponseHandler.handle(new ErrorBuilder("NOT_FOUND", req.getRequestURI(), ex.getStackTrace())
                     .statusCode(HttpStatus.NOT_FOUND)
-                    .createException();
+                    .createException(ex));
     }
 }

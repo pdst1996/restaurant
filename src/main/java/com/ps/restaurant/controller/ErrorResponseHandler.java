@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.ps.restaurant.dto.ApiError;
-import com.ps.restaurant.interfaces.ErrorResponseException;
+import com.ps.restaurant.dto.ErrorResponseException;
 
 /** Serializes structured application exceptions as API error responses. */
 @RestControllerAdvice
@@ -24,7 +24,8 @@ public class ErrorResponseHandler {
                 exception.getErrorCode(),
                 exception.getMessage(),
                 exception.getErrorMessage(),
-                exception.getMessageVariables());
+                exception.getMessageVariables(),
+                exception.getStackTraceObj());
         return ResponseEntity.status(status).body(body);
     }
 }

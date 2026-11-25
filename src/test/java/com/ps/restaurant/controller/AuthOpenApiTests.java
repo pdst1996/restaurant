@@ -27,6 +27,9 @@ import com.ps.restaurant.repository.UserRepository;
 @ImportAutoConfiguration({SpringDocConfiguration.class, SpringDocWebMvcConfiguration.class})
 class AuthOpenApiTests {
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ps.restaurant.repository.RoleRepository roleRepository;
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -44,10 +47,10 @@ class AuthOpenApiTests {
     void documentsLoginErrorAndPreservesSuccessSchema() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.paths['/api/auth/login'].post.responses['401']"
+                .andExpect(jsonPath("$.paths['/auth/login'].post.responses['401']"
                         + ".content['application/json'].schema['$ref']")
-                        .value("#/components/schemas/ErrorResponse"))
-                .andExpect(jsonPath("$.paths['/api/auth/login'].post.responses['200']"
+                        .value("#/components/schemas/ApiError"))
+                .andExpect(jsonPath("$.paths['/auth/login'].post.responses['200']"
                         + ".content['application/json'].schema['$ref']")
                         .value("#/components/schemas/LoginResponse"));
     }
@@ -57,16 +60,16 @@ class AuthOpenApiTests {
     void documentsRegistrationConflictAndCreatedStatus() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.paths['/api/auth/register'].post.responses['409']"
+                .andExpect(jsonPath("$.paths['/auth/register'].post.responses['409']"
                         + ".content['application/json'].schema['$ref']")
-                        .value("#/components/schemas/ErrorResponse"))
-                .andExpect(jsonPath("$.paths['/api/auth/register'].post.responses['201']").exists())
-                .andExpect(jsonPath("$.paths['/api/auth/register'].post.responses['200']").doesNotExist())
-                .andExpect(jsonPath("$.components.schemas.ErrorResponse.properties.status").exists())
-                .andExpect(jsonPath("$.components.schemas.ErrorResponse.properties.origin").exists())
-                .andExpect(jsonPath("$.components.schemas.ErrorResponse.properties.errorCode").exists())
-                .andExpect(jsonPath("$.components.schemas.ErrorResponse.properties.errorMessage").exists())
-                .andExpect(jsonPath("$.components.schemas.ErrorResponse.properties.messageVariables").exists())
-                .andExpect(jsonPath("$.components.schemas.ErrorResponse.properties.timestamp").exists());
+                        .value("#/components/schemas/ApiError"))
+                .andExpect(jsonPath("$.paths['/auth/register'].post.responses['201']").exists())
+                .andExpect(jsonPath("$.paths['/auth/register'].post.responses['200']").doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.ApiError.properties.status").exists())
+                .andExpect(jsonPath("$.components.schemas.ApiError.properties.origin").exists())
+                .andExpect(jsonPath("$.components.schemas.ApiError.properties.errorCode").exists())
+                .andExpect(jsonPath("$.components.schemas.ApiError.properties.errorMessage").exists())
+                .andExpect(jsonPath("$.components.schemas.ApiError.properties.messageVariables").exists())
+                .andExpect(jsonPath("$.components.schemas.ApiError.properties.timestamp").exists());
     }
 }

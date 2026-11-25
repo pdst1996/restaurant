@@ -9,6 +9,16 @@
             "name": "app.jwt.expiration-ms",
             "type": "java.lang.Integer",
             "description": ""
+        },
+        {
+            "name": "app.seed.enabled",
+            "type": "java.lang.Boolean",
+            "description": ""
+        },
+        {
+            "name": "app.seed.user.password",
+            "type": "java.lang.String",
+            "description": ""
         }
     ]
 }

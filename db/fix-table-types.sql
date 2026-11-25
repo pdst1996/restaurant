@@ -1,4 +1,5 @@
 -- Corrección del esquema parcial creado con IDs String y tamaños ordinales.
+-- order_number se almacena como texto; no se sustituyen folios existentes.
 -- Ejecutar una vez antes de iniciar la aplicación con ddl-auto=update.
 -- No elimina tablas ni registros; cualquier conversión inválida revierte todo.
 BEGIN;
@@ -10,6 +11,18 @@ DO $$
 DECLARE
     size_constraint text;
 BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'orders'
+          AND column_name = 'order_number'
+          AND data_type = 'uuid'
+    ) THEN
+        -- Compatibilidad con bases que ya convirtieron el folio a UUID.
+        -- Se conserva su representación textual, sin generar nuevos folios.
+        ALTER TABLE public.orders
+            ALTER COLUMN order_number TYPE varchar(255) USING order_number::text;
+    END IF;
+
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = 'orders'

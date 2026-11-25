@@ -31,9 +31,11 @@ import com.ps.restaurant.config.JwtService;
 import com.ps.restaurant.dto.LoginRequest;
 import com.ps.restaurant.dto.LoginResponse;
 import com.ps.restaurant.dto.UserRequest;
+import com.ps.restaurant.dto.RoleReferenceRequest;
 import com.ps.restaurant.model.Role;
 import com.ps.restaurant.model.User;
 import com.ps.restaurant.repository.UserRepository;
+import com.ps.restaurant.repository.RoleRepository;
 
 /** Tests registration and login with mocked dependencies and standalone MVC error serialization. */
 @ExtendWith(MockitoExtension.class)
@@ -48,13 +50,16 @@ class AuthControllerTests {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private RoleRepository roleRepository;
+
     private AuthController controller;
     private MockMvc mockMvc;
 
     /** Builds a fresh controller and MVC harness with mocked services and the structured-error advice. */
     @BeforeEach
     void setUp() {
-        controller = new AuthController(userRepository, passwordEncoder, jwtService);
+        controller = new AuthController(userRepository, passwordEncoder, jwtService, roleRepository);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new ErrorResponseHandler())
                 .build();
@@ -63,7 +68,9 @@ class AuthControllerTests {
     /** Captures the saved account to verify profile fields, activation, role, and password hashing. */
     @Test
     void registerSavesAllUserFieldsAndEncodesPassword() {
-        UserRequest request = new UserRequest("ana@example.com", "password", "ana", "Ana Pérez", existingRole());
+        Role role = existingRole();
+        UserRequest request = new UserRequest("ana@example.com", "password", "ana", "Ana Pérez", new RoleReferenceRequest(role.getId()));
+        when(roleRepository.findById(role.getId())).thenReturn(Optional.of(role));
         when(passwordEncoder.encode(request.password())).thenReturn("encoded-password");
 
         ResponseEntity<?> response = controller.register(request);
@@ -76,7 +83,7 @@ class AuthControllerTests {
             assertThat(user.getEmail()).isEqualTo(request.email());
             assertThat(user.getUser()).isEqualTo(request.user());
             assertThat(user.getFullName()).isEqualTo(request.fullName());
-            assertThat(user.getRole()).isEqualTo(request.role());
+            assertThat(user.getRole()).isSameAs(role);
             assertThat(user.isActive()).isTrue();
             assertThat(user.getPassword()).isEqualTo("encoded-password");
         });
@@ -85,10 +92,10 @@ class AuthControllerTests {
     /** Verifies duplicate emails produce a localized HTTP 409 response without saving or hashing. */
     @Test
     void registerRejectsDuplicateEmail() throws Exception {
-        UserRequest request = new UserRequest("ana@example.com", "password", "ana", "Ana Pérez", existingRole());
+        UserRequest request = new UserRequest("ana@example.com", "password", "ana", "Ana Pérez", new RoleReferenceRequest(existingRole().getId()));
         when(userRepository.existsByEmail(request.email())).thenReturn(true);
 
-        mockMvc.perform(post("/api/auth/register")
+        mockMvc.perform(post("/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(registrationJson()))
             .andExpect(status().isConflict())
@@ -106,10 +113,10 @@ class AuthControllerTests {
     /** Verifies duplicate usernames produce a localized HTTP 409 response without saving or hashing. */
     @Test
     void registerRejectsDuplicateUsername() throws Exception {
-        UserRequest request = new UserRequest("ana@example.com", "password", "ana", "Ana Pérez", existingRole());
+        UserRequest request = new UserRequest("ana@example.com", "password", "ana", "Ana Pérez", new RoleReferenceRequest(existingRole().getId()));
         when(userRepository.findByUserOrEmail(request.user())).thenReturn(Optional.of(existingUser()));
 
-        mockMvc.perform(post("/api/auth/register")
+        mockMvc.perform(post("/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(registrationJson()))
             .andExpect(status().isConflict())
@@ -137,12 +144,12 @@ class AuthControllerTests {
         LoginResponse login = body;
         assertThat(login.token()).isEqualTo("jwt-token");
         assertThat(login.user()).satisfies(result -> {
-            assertThat(result.getId()).isEqualTo(user.getId());
-            assertThat(result.getEmail()).isEqualTo(user.getEmail());
-            assertThat(result.getUser()).isEqualTo(user.getUser());
-            assertThat(result.getFullName()).isEqualTo(user.getFullName());
-            assertThat(result.getRole()).isEqualTo(user.getRole());
-            assertThat(result.isActive()).isTrue();
+            assertThat(result.id()).isEqualTo(user.getId());
+            assertThat(result.email()).isEqualTo(user.getEmail());
+            assertThat(result.user()).isEqualTo(user.getUser());
+            assertThat(result.fullName()).isEqualTo(user.getFullName());
+            assertThat(result.role()).isEqualTo(com.ps.restaurant.dto.RoleResponse.from(user.getRole()));
+            assertThat(result.active()).isTrue();
         });
         verify(userRepository, never()).findByEmail(any());
     }
@@ -167,7 +174,7 @@ class AuthControllerTests {
     void loginRejectsUnknownUsername() throws Exception {
         when(userRepository.findByUserOrEmail("unknown")).thenReturn(Optional.empty());
 
-        MvcResult response = mockMvc.perform(post("/api/auth/login")
+        MvcResult response = mockMvc.perform(post("/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"user":"unknown","password":"secret-password"}
@@ -192,7 +199,7 @@ class AuthControllerTests {
         when(userRepository.findByUserOrEmail("ana")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("wrong-password", user.getPassword())).thenReturn(false);
 
-        MvcResult response = mockMvc.perform(post("/api/auth/login")
+        MvcResult response = mockMvc.perform(post("/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"user":"ana","password":"wrong-password"}

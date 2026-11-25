@@ -18,6 +18,10 @@ import com.ps.restaurant.dto.UserRequest;
 import com.ps.restaurant.dto.UserResponse;
 import com.ps.restaurant.model.User;
 import com.ps.restaurant.repository.UserRepository;
+import com.ps.restaurant.repository.RoleRepository;
+import com.ps.restaurant.dto.ErrorResponseException.NotFoundException;
+import org.springframework.transaction.annotation.Transactional;
+import jakarta.validation.Valid;
 import com.ps.restaurant.service.ErrorBuilder;
 
 import io.swagger.v3.oas.annotations.media.Content;
@@ -28,13 +32,15 @@ import lombok.RequiredArgsConstructor;
 
 /** Exposes account registration and username-or-email login endpoints. */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AuthController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RoleRepository roleRepository;
 
     /**
      * Rejects duplicate identifiers, hashes the password, and saves an active user
@@ -48,7 +54,8 @@ public class AuthController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ApiError.class)))
     })
-    public ResponseEntity<?> register(@RequestBody UserRequest req) {
+    @Transactional
+    public ResponseEntity<?> register(@Valid @RequestBody UserRequest req) {
         if (userRepository.existsByEmail(req.email())) {
             throw new ErrorBuilder("AUTH_EMAIL_ALREADY_EXISTS", "AuthController.register")
                     .statusCode(HttpStatus.CONFLICT)
@@ -61,7 +68,8 @@ public class AuthController {
         }
         User user = new User();
         user.setFullName(req.fullName());
-        user.setRole(req.role());
+        user.setRole(roleRepository.findById(req.role().id())
+                .orElseThrow(() -> new NotFoundException("Role was not found")));
         user.setEmail(req.email());
         user.setUser(req.user());
         user.setActive(true);
@@ -95,7 +103,7 @@ public class AuthController {
         }
         return ResponseEntity.ok(new LoginResponse(
                 jwtService.generateToken(u.getEmail()),
-                new UserResponse(u.getId(), u.getEmail(), u.getUser(), u.getFullName(), u.getRole(), u.isActive())));
+                UserResponse.from(u)));
     }
     
 }

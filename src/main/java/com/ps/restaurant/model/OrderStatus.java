@@ -3,6 +3,7 @@ package com.ps.restaurant.model;
 /** Lists persisted order states without enforcing transitions; Java generates values() and valueOf(String). */
 public enum OrderStatus {
     OPEN,
+    DRAFT,
     CONFIRMED,
     PREPARING,
     READY,

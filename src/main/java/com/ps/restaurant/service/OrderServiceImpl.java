@@ -1,33 +1,156 @@
 package com.ps.restaurant.service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.ps.restaurant.dto.ErrorResponseException.ConflictException;
+import com.ps.restaurant.dto.OrderRequest;
+import com.ps.restaurant.dto.OrderResponse;
 import com.ps.restaurant.dto.filters.FilterOrderRequest;
 import com.ps.restaurant.interfaces.OrderService;
+import com.ps.restaurant.model.Allergy;
 import com.ps.restaurant.model.Order;
+import com.ps.restaurant.model.Table;
+import com.ps.restaurant.model.User;
+import com.ps.restaurant.repository.AllergyRepository;
 import com.ps.restaurant.repository.OrderRepository;
+import com.ps.restaurant.repository.TableRepository;
+import com.ps.restaurant.repository.UserRepository;
 import com.ps.restaurant.repository.specification.OrderSpecifications;
 
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class OrderServiceImpl implements OrderService {
 
-    private OrderRepository orderRepository;
+    private final AllergyRepository allergyRepository;
+    private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+    private final TableRepository tableRepository;
 
-    public List<Order> filterOrders(FilterOrderRequest filter) {
-
-        validateDateRange(filter);
-
-        return orderRepository.findAll(
-            OrderSpecifications.withFilters(filter)
-        );
+    @Override
+    public Optional<Order> getOrderById(Long id) {
+        return orderRepository.findById(id);
     }
 
-    private void validateDateRange(FilterOrderRequest filter) {
-        if (filter.fromDate() != null
-                && filter.toDate() != null
-                && filter.fromDate().isAfter(filter.toDate())) {
-            throw new IllegalArgumentException(
-                "fromDate must be before or equal to toDate"
-            );
+    @Override
+    public List<OrderResponse> filterOrders(FilterOrderRequest filter) {
+
+        ServiceSupport.validateDateRange(filter.fromDate(), filter.toDate());
+
+        return orderRepository.findAll(OrderSpecifications.withFilters(filter)).stream()
+                .map(OrderResponse::from)
+                .toList();
+    }
+
+    @Override
+    public long countOrders(FilterOrderRequest filter) {
+        ServiceSupport.validateDateRange(filter.fromDate(), filter.toDate());
+        return orderRepository.count(OrderSpecifications.withFilters(filter));
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse createOrder(OrderRequest orderRequest) {
+        if (orderRepository.findByOrderNumber(orderRequest.orderNumber()).isPresent()) {
+            throw new ConflictException("Order with this orderNumber already exists");
         }
+        User waiter = ServiceSupport.requireById(userRepository, orderRequest.waiterId(), "Waiter");
+        Table table = orderRequest.tableId() == null ? null
+                : ServiceSupport.requireById(tableRepository, orderRequest.tableId(), "Table");
+
+        List<Allergy> allergies = new ArrayList<>();
+        if (orderRequest.allergyIds() != null) {
+            for (Long id : orderRequest.allergyIds().stream().distinct().toList()) {
+                allergies.add(ServiceSupport.requireById(allergyRepository, id, "Allergy"));
+            }
+        }
+        Order order = new Order();
+        order.setAllergies(allergies);
+        order.setCustomer(orderRequest.customer());
+        order.setOrderNumber(orderRequest.orderNumber());
+        order.setTogo(orderRequest.togo());
+        if (orderRequest.total() != null) {
+            order.setTotal(orderRequest.total());
+        }
+        if (orderRequest.status() != null) {
+            order.setStatus(orderRequest.status());
+        }
+        order.setOtherAllergies(orderRequest.otherAllergies());
+        order.setNotes(orderRequest.notes());
+        order.setTable(table);
+        order.setWaiter(waiter);
+        return OrderResponse.from(orderRepository.save(order));
     }
+
+    @Override
+    @Transactional
+    public OrderResponse updateOrder(Long id, OrderRequest orderRequest) {
+
+        // 1. Retrieve the existing order
+        Order order = ServiceSupport.requireById(orderRepository, id, "Order");
+
+        // 2. Validate order number uniqueness (excluding current order)
+        orderRepository.findByOrderNumber(orderRequest.orderNumber())
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new ConflictException(
+                            "Order with this orderNumber already exists");
+                });
+
+        // 3. Retrieve waiter
+        User waiter = ServiceSupport.requireById(
+                userRepository,
+                orderRequest.waiterId(),
+                "Waiter");
+
+        // 4. Retrieve table (nullable)
+        Table table = orderRequest.tableId() == null
+                ? null
+                : ServiceSupport.requireById(
+                        tableRepository,
+                        orderRequest.tableId(),
+                        "Table");
+
+        // 5. Retrieve allergies
+        List<Allergy> allergies = new ArrayList<>();
+
+        if (orderRequest.allergyIds() != null) {
+            for (Long allergyId : orderRequest.allergyIds().stream()
+                    .distinct()
+                    .toList()) {
+
+                allergies.add(ServiceSupport.requireById(
+                        allergyRepository,
+                        allergyId,
+                        "Allergy"));
+            }
+        }
+
+        // 6. Update existing entity
+        order.setAllergies(allergies);
+        order.setCustomer(orderRequest.customer());
+        order.setOrderNumber(orderRequest.orderNumber());
+        order.setTogo(orderRequest.togo());
+        if (orderRequest.total() != null) {
+            order.setTotal(orderRequest.total());
+        }
+        if (orderRequest.status() != null) {
+            order.setStatus(orderRequest.status());
+        }
+        order.setOtherAllergies(orderRequest.otherAllergies());
+        order.setNotes(orderRequest.notes());
+        order.setTable(table);
+        order.setWaiter(waiter);
+
+        // 7. Persist changes
+        return OrderResponse.from(orderRepository.save(order));
+    }
+
 }

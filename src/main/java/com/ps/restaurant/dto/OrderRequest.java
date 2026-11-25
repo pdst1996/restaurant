@@ -2,8 +2,9 @@ package com.ps.restaurant.dto;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import com.ps.restaurant.model.OrderStatus;
 
 import jakarta.validation.constraints.DecimalMin;
@@ -13,14 +14,16 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
-/** Holds order fields; items and payments use their own requests, and tableId is optional. */
+/** Holds order fields; tableId is optional, and omitted or null togo defaults to false. */
 public record OrderRequest(
-        @NotBlank @Size(max = 255) UUID orderNumber,
+        @NotBlank @Size(max = 255) String orderNumber,
         @NotNull @Positive Long waiterId,
-        @NotBlank @Size(max = 255) String customer,
-        List<@NotBlank String> allergies,
+        @Size(max = 255) String customer,
         @Positive Long tableId,
-        @NotNull OrderStatus status,
-        boolean togo,
-        @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal total) {
+        List<@NotNull @Positive Long> allergyIds,
+        OrderStatus status,
+        @JsonSetter(nulls = Nulls.AS_EMPTY) boolean togo,
+        @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal total,
+        String otherAllergies,
+        String notes) {
 }

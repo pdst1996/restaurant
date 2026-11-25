@@ -10,7 +10,7 @@ import java.util.function.BiConsumer;
 
 import org.springframework.http.HttpStatus;
 
-import com.ps.restaurant.interfaces.ErrorResponseException;
+import com.ps.restaurant.dto.ErrorResponseException;
 
 /** Builds structured error exceptions from localized resource bundles and optional message overrides. */
 public class ErrorBuilder {
@@ -29,6 +29,8 @@ public class ErrorBuilder {
     
     private final Map<String, String> messageVariables;
 
+    private Object stackTrace;
+
     /** Initializes mutable message maps, an empty default message, and the default HTTP 500 status. */
     public ErrorBuilder() {
         this.messageVariables = new HashMap<>();
@@ -36,17 +38,28 @@ public class ErrorBuilder {
         this.message = "";
     }
 
-    /** Selects an error code and origin, allowing the English bundle to supply the default message. */
+    /** Selects an error code and origin without exposing a diagnostic stack trace. */
     public ErrorBuilder(String errorCode, String origin) {
-        this(errorCode, null, origin);
+        this(errorCode, null, origin, null);
+    }
+
+    /** Selects an explicit default message and origin without a diagnostic stack trace. */
+    public ErrorBuilder(String errorCode, String message, String origin) {
+        this(errorCode, message, origin, null);
+    }
+
+    /** Selects an error code and origin, allowing the English bundle to supply the default message. */
+    public ErrorBuilder(String errorCode, String origin, Object stackTrace) {
+        this(errorCode, null, origin, stackTrace);
     }
 
     /** Selects an error code, an optional default message template, and the failure origin. */
-    public ErrorBuilder(String errorCode, String message, String origin) {
+    public ErrorBuilder(String errorCode, String message, String origin, Object stackTrace) {
         this();
         this.errorCode = errorCode;
         this.message = message;
         this.origin = origin;
+        this.stackTrace = stackTrace;
     }
 
     /** Copies localized overrides and prefers their non-null "default" entry over the supplied message. */
@@ -136,6 +149,18 @@ public class ErrorBuilder {
         this.message = message;
     }
 
+    /** Returns the optional diagnostic stack trace to include in the API response. */
+     public Object getStackTrace() {
+        return stackTrace;
+    }
+
+    /** Replaces the diagnostic stack trace; null omits it unless a cause is supplied. */
+    public void setStackTrace(Object stackTrace) {
+        this.stackTrace = stackTrace;
+    }
+
+
+
     /**
      * Creates a localized structured exception using the current builder state and throws it.
      *
@@ -186,8 +211,10 @@ public class ErrorBuilder {
         Map<String, String> messages = loadMessages();
         String template = message != null ? message : messages.get("en");
         messages.replaceAll((language, message) -> interpolate(message));
-        return new ErrorResponseException(interpolate(template), cause, template, status, origin, errorCode,
+        ErrorResponseException exception = new ErrorResponseException(interpolate(template), cause, template, status, origin, errorCode,
                 Map.copyOf(messages), Map.copyOf(messageVariables));
+        exception.setStackTrace(stackTrace != null ? stackTrace : cause != null ? cause.getStackTrace() : null);
+        return exception;
     }
 
     /**

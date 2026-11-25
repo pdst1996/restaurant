@@ -4,11 +4,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
-
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.UuidGenerator;
-import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -20,6 +15,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -43,22 +40,26 @@ public class Order {
     @GeneratedValue (strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column (nullable = false, unique = true)
-    @UuidGenerator 
-    private UUID orderNumber;
+    @Column(name = "order_number", nullable = false, unique = true, length = 255)
+    private String orderNumber;
 
     @ManyToOne (fetch = FetchType.LAZY, optional = false)
     @JoinColumn (name = "waiter_id", nullable = false)
     private User waiter;
 
-    @Column (nullable = false)
+    @Column (nullable = true)
     private String customer;
 
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    private List<String> allergies = new ArrayList<>();
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "order_allergies",
+        joinColumns = @JoinColumn(name = "order_id"),
+        inverseJoinColumns = @JoinColumn(name = "allergy_id")
+    )
+    private List<Allergy> allergies = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "table_id")
+    @JoinColumn(name = "table_id",  nullable = true)
     private com.ps.restaurant.model.Table table;
 
     @OneToMany (
@@ -76,12 +77,18 @@ public class Order {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private OrderStatus status = OrderStatus.OPEN;
+    private OrderStatus status = OrderStatus.DRAFT;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private boolean togo = false;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(nullable = true)
+    private String notes;
+
+    @Column(nullable = true)
+    private String otherAllergies;
+
+    @Column(nullable = true)
     private BigDecimal total = BigDecimal.ZERO;
 
     @Column(nullable = false, updatable = false)
