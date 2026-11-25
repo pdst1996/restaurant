@@ -1,5 +1,9 @@
 # Corrección de tablas PostgreSQL
 
+Las migraciones numeradas para permisos, historial, caja y catálogo se
+documentan en [CAMBIOS.md](../docs/CAMBIOS.md). Los scripts descritos aquí
+solo aplican a las variantes históricas del esquema.
+
 Los IDs de `users` y `roles` son `bigint` con generación `IDENTITY`.
 `orders.waiter_id` debe usar el mismo tipo. `orders.order_number` se almacena
 como `varchar(255)` y se usa como `String` en el modelo, DTOs, filtros y

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import com.ps.restaurant.dto.filters.FilterOrderRequest;
 import com.ps.restaurant.model.Order;
+import com.ps.restaurant.model.OrderStatus;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,9 +36,9 @@ public final class OrderSpecifications {
             }
 
             if (filter.status() != null) {
-                predicates.add(
-                    cb.equal(root.get("status"), filter.status())
-                );
+                predicates.add(filter.status() == OrderStatus.OPEN && Boolean.TRUE.equals(filter.includeLegacyPending())
+                        ? root.get("status").in(OrderStatus.OPEN, OrderStatus.CONFIRMED)
+                        : cb.equal(root.get("status"), filter.status()));
             }
 
             if (filter.tableId() != null) {

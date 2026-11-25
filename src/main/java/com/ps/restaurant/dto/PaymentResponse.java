@@ -10,10 +10,11 @@ import com.ps.restaurant.model.PaymentStatus;
 /** Exposes payment details and its order identifier without a parent entity reference. */
 public record PaymentResponse(Long id, Long orderId, BigDecimal amount, PaymentMethod method, Instant createdAt,
         PaymentStatus status, BigDecimal tip, BigDecimal cashReceived, BigDecimal change, String externalReference,
-        Long collectedBy, Long refundedBy, Instant refundedAt, String refundReason, String refundReference) {
+        Long collectedBy, Long refundedBy, Instant refundedAt, String refundReason, String refundReference,
+        PaymentStatus reversedFrom) {
     public PaymentResponse(Long id, Long orderId, BigDecimal amount, PaymentMethod method, Instant createdAt) {
         this(id, orderId, amount, method, createdAt, PaymentStatus.COMPLETED, BigDecimal.ZERO,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
     }
 
     public static PaymentResponse from(Payment payment) {
@@ -24,6 +25,7 @@ public record PaymentResponse(Long id, Long orderId, BigDecimal amount, PaymentM
                 payment.getMethod(),
                 payment.getCreatedAt(), payment.getStatus(), payment.getTip(), payment.getCashReceived(),
                 payment.getChange(), payment.getExternalReference(), payment.getCollectedBy(),
-                payment.getRefundedBy(), payment.getRefundedAt(), payment.getRefundReason(), payment.getRefundReference());
+                payment.getRefundedBy(), payment.getRefundedAt(), payment.getRefundReason(), payment.getRefundReference(),
+                payment.getReversedFrom());
     }
 }

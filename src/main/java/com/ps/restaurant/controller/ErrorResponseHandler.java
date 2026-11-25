@@ -25,7 +25,7 @@ public class ErrorResponseHandler {
                 exception.getMessage(),
                 exception.getErrorMessage(),
                 exception.getMessageVariables(),
-                exception.getStackTraceObj());
+                null); // Never expose internal stack traces over HTTP.
         return ResponseEntity.status(status).body(body);
     }
 }

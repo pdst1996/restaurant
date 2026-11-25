@@ -67,7 +67,7 @@ public class OrderItemServiceImpl implements OrderItemService {
         OrderItem item = new OrderItem();
         var product = ServiceSupport.requireById(itemsRepository, request.itemId(), "Item");
         var size = ServiceSupport.requireById(sizeRepository, request.sizeId(), "Item size");
-        if (!product.isAvailable()) throw new ConflictException("This menu item is unavailable");
+        if (!product.isActive() || !product.isAvailable()) throw new ConflictException("This menu item is unavailable");
         if (product.getSizes().stream().noneMatch(s -> s.getId().equals(size.getId()))
                 || itemAttributes.stream().anyMatch(a -> product.getAvailableAttributes().stream()
                         .noneMatch(allowed -> a.getId().equals(allowed.getId())))) {

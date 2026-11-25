@@ -46,7 +46,7 @@ class GlobalExceptionHandlerMvcTests {
                 .andExpect(jsonPath("$.status").value("404"))
                 .andExpect(jsonPath("$.origin").value("/missing-resource"))
                 .andExpect(jsonPath("$.errorCode").value("NOT_FOUND"))
-                .andExpect(jsonPath("$.stackTrace").isNotEmpty())
+                .andExpect(jsonPath("$.stackTrace").doesNotExist())
                 .andExpect(jsonPath("$.errorMessage.es").value("Recurso no encontrado."));
     }
 
@@ -56,15 +56,13 @@ class GlobalExceptionHandlerMvcTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value("400"))
                 .andExpect(jsonPath("$.errorCode").value("MALFORMED_JSON"))
-                .andExpect(jsonPath("$.stackTrace").isArray())
-                .andExpect(jsonPath("$.stackTrace[0].className").isNotEmpty())
-                .andExpect(jsonPath("$.stackTrace[0].methodName").isNotEmpty());
+                .andExpect(jsonPath("$.stackTrace").doesNotExist());
     }
 
     @Test
     void preservesStructuredApplicationErrors() throws Exception {
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"user\":\"\",\"password\":\"\"}"))
+                .content("{\"user\":\"unknown-user\",\"password\":\"test-password\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value("401"))
                 .andExpect(jsonPath("$.errorCode").value("AUTH_USER_NOT_FOUND"));

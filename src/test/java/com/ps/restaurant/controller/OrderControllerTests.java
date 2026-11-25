@@ -258,7 +258,7 @@ class OrderControllerTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("MALFORMED_JSON"))
                 .andExpect(jsonPath("$.origin").value("/order/orders"))
-                .andExpect(jsonPath("$.stackTrace[0].className").isNotEmpty());
+                .andExpect(jsonPath("$.stackTrace").doesNotExist());
 
         verifyNoInteractions(orderService);
     }
@@ -270,7 +270,7 @@ class OrderControllerTests {
                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_EXCEPTION"))
-                .andExpect(jsonPath("$.stackTrace[0].className").isNotEmpty());
+                .andExpect(jsonPath("$.stackTrace").doesNotExist());
 
         verifyNoInteractions(orderService);
     }

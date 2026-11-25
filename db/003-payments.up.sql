@@ -10,6 +10,7 @@ ALTER TABLE payments
     ADD COLUMN IF NOT EXISTS collected_by bigint REFERENCES users(id),
     ADD COLUMN IF NOT EXISTS refunded_by bigint REFERENCES users(id),
     ADD COLUMN IF NOT EXISTS refunded_at timestamp with time zone,
+    ADD COLUMN IF NOT EXISTS reversed_from varchar(255),
     ADD COLUMN IF NOT EXISTS refund_reason varchar(500),
     ADD COLUMN IF NOT EXISTS idempotency_key varchar(80),
     ADD COLUMN IF NOT EXISTS request_fingerprint varchar(64);

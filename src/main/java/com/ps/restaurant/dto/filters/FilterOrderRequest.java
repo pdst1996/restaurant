@@ -17,10 +17,11 @@ public record FilterOrderRequest(
     Instant fromDate,
     Instant toDate,
     @PositiveOrZero Integer page,
-    @Positive @Max(100) Integer size
+    @Positive @Max(100) Integer size,
+    Boolean includeLegacyPending
 ) {
     public FilterOrderRequest(Long id, String orderNumber, OrderStatus status, Long tableId, Long waiterId,
             Instant fromDate, Instant toDate) {
-        this(id, orderNumber, status, tableId, waiterId, fromDate, toDate, null, null);
+        this(id, orderNumber, status, tableId, waiterId, fromDate, toDate, null, null, null);
     }
 }

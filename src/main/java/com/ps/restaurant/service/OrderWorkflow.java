@@ -9,8 +9,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.ps.restaurant.config.SessionPrincipal;
 import com.ps.restaurant.dto.ErrorResponseException;
-import com.ps.restaurant.dto.ErrorResponseException.ConflictException;
 import com.ps.restaurant.dto.ErrorResponseException.NotFoundException;
 import com.ps.restaurant.dto.ErrorResponseException.UnauthorizedException;
 import com.ps.restaurant.dto.OrderResponse;
@@ -94,14 +94,14 @@ public class OrderWorkflow {
         }
         if ((next == OPEN || next == SERVED || next == CANCELLED) && auth != null) enforceOwnership(order.getWaiter());
         if ((next == OPEN || next == PREPARING) && order.getItems().isEmpty()) {
-            throw new ConflictException("An order needs at least one item before sending it to the kitchen");
+            throw new ErrorResponseException(409, "ORDER_REQUIRES_ITEMS", "Add at least one item before sending the order to the kitchen");
         }
         if (next == CANCELLED && (reason == null || reason.isBlank())) {
             throw new ErrorResponseException(422, "CANCEL_REASON_REQUIRED", "Cancel reason is required");
         }
         if (next == CANCELLED && order.getPayments().stream().anyMatch(
                 p -> p.getStatus() == PaymentStatus.COMPLETED || p.getStatus() == PaymentStatus.PENDING)) {
-            throw new ConflictException("Reverse the order payments before cancelling");
+            throw new ErrorResponseException(409, "ORDER_HAS_ACTIVE_PAYMENTS", "Reverse the order payments before cancelling");
         }
         if (next == PAID) {
             var balance = amounts.summarize(order);
@@ -115,13 +115,16 @@ public class OrderWorkflow {
     }
 
     void requireEditable(Order order) {
-        if (OrderLifecycle.closed(order.getStatus())) throw new ConflictException("Paid or cancelled orders cannot be edited");
+        if (OrderLifecycle.closed(order.getStatus())) {
+            throw new ErrorResponseException(409, "ORDER_NOT_EDITABLE", "Paid or cancelled orders cannot be edited");
+        }
         enforceOwnership(order.getWaiter());
     }
 
     void enforceOwnership(User waiter) {
         Authentication auth = authentication();
-        if (auth != null && !has(auth, ORDER_ASSIGN) && !auth.getName().equals(waiter.getEmail())) {
+        if (auth != null && !has(auth, ORDER_ASSIGN)
+                && SessionPrincipal.userId(auth).filter(waiter.getId()::equals).isEmpty()) {
             throw new AccessDeniedException("This order belongs to another waiter");
         }
     }
@@ -136,7 +139,7 @@ public class OrderWorkflow {
     void updateTotal(Order order) {
         var balance = amounts.recalculate(order);
         if (balance.total().compareTo(balance.paid().add(balance.pending())) < 0) {
-            throw new ConflictException("The order total cannot be lower than its completed and pending payments");
+            throw new ErrorResponseException(409, "ORDER_TOTAL_BELOW_PAYMENTS", "The order total cannot be lower than its payments");
         }
         order.setTotal(balance.total());
     }
@@ -144,7 +147,8 @@ public class OrderWorkflow {
     User actor() {
         Authentication auth = authentication();
         if (auth == null) return null; // Internal calls and pre-RBAC import jobs need no actor.
-        return users.findByEmail(auth.getName()).orElseThrow(() -> new UnauthorizedException("Invalid session"));
+        return SessionPrincipal.userId(auth).flatMap(users::findById)
+                .orElseThrow(() -> new UnauthorizedException("Invalid session"));
     }
 
     User requireActor() {

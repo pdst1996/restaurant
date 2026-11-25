@@ -1,6 +1,7 @@
 package com.ps.restaurant.config;
 
 import java.util.Date;
+import java.util.Optional;
 
 import javax.crypto.SecretKey;
 
@@ -13,7 +14,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 
-/** Signs and verifies JWTs whose subject contains the user's email address. */
+/** Signs and verifies JWTs whose subject contains the immutable account identifier. */
 @Service 
 public class JwtService {
 
@@ -27,29 +28,25 @@ public class JwtService {
         this.expirationMs = expirationMs;
     }
 
-    /** Creates a signed token with the email as its subject and a configured expiration time. */
-    public String generateToken(String email) {
+    public String generateToken(Long userId) {
         Date now = new Date();
         return Jwts.builder()
-            .subject(email)
+            .subject("user:" + userId)
             .issuedAt(now)
             .expiration(new Date(now.getTime() + expirationMs))
             .signWith(key)
             .compact();
     }
 
-    /** Verifies the token and returns its subject; invalid or expired tokens raise an exception. */
-    public String extractEmail(String token) {
-        return parse(token).getSubject();
-    }
-
-    /** Returns whether signature verification and claims parsing succeed without a JWT error. */
-    public boolean isValid(String token) {
+    /** Old email-based tokens no longer authenticate after the upgrade. */
+    public Optional<Long> userId(String token) {
         try {
-            parse(token);
-            return true;
+            String subject = parse(token).getSubject();
+            if (subject == null || !subject.startsWith("user:")) return Optional.empty();
+            long id = Long.parseLong(subject.substring(5));
+            return id > 0 ? Optional.of(id) : Optional.empty();
         } catch (JwtException | IllegalArgumentException e) {
-            return false; // Reject invalid signatures, expired tokens, and malformed input.
+            return Optional.empty();
         }
     }
 

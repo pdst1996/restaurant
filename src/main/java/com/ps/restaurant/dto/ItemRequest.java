@@ -23,5 +23,11 @@ public record ItemRequest (
         boolean available,
         @Size(max = 2048) String img,
         List<@NotNull @Positive Long> attributeIds,
-        List<@NotNull @Positive Long> sizeIds) {
+        List<@NotNull @Positive Long> sizeIds,
+        Boolean active) {
+    public ItemRequest(String sku, Map<String, String> displayName, Map<String, Object> barcodes,
+            String description, BigDecimal price, Long categoryId, boolean available, String img,
+            List<Long> attributeIds, List<Long> sizeIds) {
+        this(sku, displayName, barcodes, description, price, categoryId, available, img, attributeIds, sizeIds, null);
+    }
 }

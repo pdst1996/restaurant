@@ -60,6 +60,7 @@ public class Payment {
     private Long collectedBy;
     private Long refundedBy;
     private Instant refundedAt;
+    @Enumerated(EnumType.STRING) private PaymentStatus reversedFrom;
     @Column(length = 500) private String refundReason;
     @Column(length = 80, updatable = false) private String idempotencyKey;
     @Column(length = 64, updatable = false) private String requestFingerprint;

@@ -40,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
  * three.
  */
 @Component
-@org.springframework.core.annotation.Order(4)
+@org.springframework.core.annotation.Order(5)
 @ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j

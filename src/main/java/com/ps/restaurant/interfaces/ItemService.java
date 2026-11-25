@@ -33,4 +33,6 @@ public interface ItemService {
      */
     public ItemResponse createItem(ItemRequest itemRequest);
 
+    ItemResponse updateItem(Long id, ItemRequest request);
+
 }

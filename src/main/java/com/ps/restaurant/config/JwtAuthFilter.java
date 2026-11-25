@@ -34,19 +34,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain chain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
 
-        if (header != null && header.startsWith("Bearer ")) {
+        if (header != null && header.startsWith("Bearer ")
+                && SecurityContextHolder.getContext().getAuthentication() == null) {
             String token = header.substring(7);
-            if (jwtService.isValid(token)
-                    && SecurityContextHolder.getContext().getAuthentication() == null) {
-                String email = jwtService.extractEmail(token);
-                users.findByEmail(email).filter(u -> u.isActive() && u.getRole().isActive()).ifPresent(u -> {
+            jwtService.userId(token).flatMap(users::findWithRoleById)
+                .filter(u -> u.isActive() && u.getRole().isActive()).ifPresent(u -> {
                     var authorities = new ArrayList<>(u.getRole().getPermissions().stream()
                             .map(SimpleGrantedAuthority::new).toList());
                     if ("admin".equals(u.getRole().getName())) authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
                     SecurityContextHolder.getContext().setAuthentication(
-                            new UsernamePasswordAuthenticationToken(email, null, authorities));
+                            new UsernamePasswordAuthenticationToken(new SessionPrincipal(u.getId()), null, authorities));
                 });
-            }
         }
         chain.doFilter(request, response);
     }

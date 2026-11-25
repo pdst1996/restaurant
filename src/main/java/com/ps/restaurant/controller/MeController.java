@@ -9,6 +9,7 @@ import com.ps.restaurant.repository.UserRepository;
 import com.ps.restaurant.dto.ErrorResponseException.UnauthorizedException;
 import com.ps.restaurant.dto.ApiResponse;
 import com.ps.restaurant.dto.UserResponse;
+import com.ps.restaurant.config.SessionPrincipal;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,7 +24,7 @@ public class MeController {
     @GetMapping ("/me")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ApiResponse<UserResponse> me(Authentication auth) {
-        User u = userRepository.findByUserOrEmail(auth.getName())
+        User u = SessionPrincipal.userId(auth).flatMap(userRepository::findWithRoleById)
             .orElseThrow(() -> new UnauthorizedException("Sesión inválida"));
         return ApiResponse.ok(UserResponse.from(u));
     }

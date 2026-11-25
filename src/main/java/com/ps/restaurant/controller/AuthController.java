@@ -56,6 +56,9 @@ public class AuthController {
     })
     @Transactional
     public ResponseEntity<?> register(@Valid @RequestBody UserRequest req) {
+        if (req.password().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+            throw new com.ps.restaurant.dto.ErrorResponseException(422, "INVALID_PASSWORD", "Password exceeds 72 UTF-8 bytes");
+        }
         if (userRepository.existsByEmail(req.email())) {
             throw new ErrorBuilder("AUTH_EMAIL_ALREADY_EXISTS", "AuthController.register")
                     .statusCode(HttpStatus.CONFLICT)
@@ -91,18 +94,20 @@ public class AuthController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ApiError.class)))
     })
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest req) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest req) {
         User u = userRepository.findByUserOrEmail(req.user())
                 .orElseThrow(() -> new ErrorBuilder("AUTH_USER_NOT_FOUND", "AuthController.login")
                         .statusCode(HttpStatus.UNAUTHORIZED)
                         .createException());
-        if (!u.isActive() || !u.getRole().isActive() || !passwordEncoder.matches(req.password(), u.getPassword())) {
+        if (!u.isActive() || !u.getRole().isActive()
+                || req.password().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72
+                || !passwordEncoder.matches(req.password(), u.getPassword())) {
             throw new ErrorBuilder("AUTH_INVALID_PASSWORD", "AuthController.login")
                     .statusCode(HttpStatus.UNAUTHORIZED)
                     .createException();
         }
         return ResponseEntity.ok(new LoginResponse(
-                jwtService.generateToken(u.getEmail()),
+                jwtService.generateToken(u.getId()),
                 UserResponse.from(u)));
     }
     

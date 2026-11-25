@@ -132,6 +132,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setRefundReason(reason.strip());
         payment.setRefundedBy(actor.getId());
         payment.setRefundedAt(java.time.Instant.now());
+        payment.setReversedFrom(payment.getStatus());
         payment.setStatus(PaymentStatus.REFUNDED);
         workflow.reopenAfterRefund(order, reason);
         return PaymentResponse.from(payment);

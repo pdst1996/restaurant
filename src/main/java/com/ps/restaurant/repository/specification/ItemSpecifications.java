@@ -19,6 +19,7 @@ public final class ItemSpecifications {
 
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            if (!Boolean.TRUE.equals(filter.includeInactive())) predicates.add(cb.isTrue(root.get("active")));
 
             if (filter.id() != null) {
                 predicates.add(

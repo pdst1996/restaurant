@@ -56,6 +56,21 @@ class PermissionMvcTests {
     }
 
     @Test
+    void accountTokenRemainsBoundToItsIdAfterAnEmailChange() throws Exception {
+        String originalToken = token("gerente");
+        User manager = users.findByEmail("test-gerente@example.com").orElseThrow();
+        manager.setEmail("new-manager@example.com");
+        users.flush();
+        User admin = users.findWithRoleById(jwt.userId(token("admin").substring(7)).orElseThrow()).orElseThrow();
+        admin.setEmail("test-gerente@example.com");
+        users.flush();
+        mvc.perform(get("/me").header("Authorization", originalToken))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.id").value(manager.getId()))
+                .andExpect(jsonPath("$.data.email").value("new-manager@example.com"));
+        mvc.perform(get("/user/users").header("Authorization", originalToken)).andExpect(status().isForbidden());
+    }
+
+    @Test
     void transitionsThroughTheCorrectRolesAndRecordsWhoChangedWhat() throws Exception {
         String waiter = token("mesero");
         String cook = token("cocina");
@@ -89,7 +104,8 @@ class PermissionMvcTests {
                                 + size.getId() + ",\"quantity\":1,\"unitPrice\":0.01}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.unitPrice").value(100));
         transition(path, waiter, "OPEN").andExpect(status().isOk());
-        transition(path, cook, "READY").andExpect(status().isConflict());
+        transition(path, cook, "READY").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("ORDER_INVALID_TRANSITION"));
         transition(path, waiter, "PREPARING").andExpect(status().isForbidden());
         transition(path, cook, "PREPARING").andExpect(status().isOk());
         transition(path, cook, "READY").andExpect(status().isOk());
@@ -132,6 +148,7 @@ class PermissionMvcTests {
         String manager = token("gerente");
         mvc.perform(post(refundPath).header("Authorization", manager).contentType(MediaType.APPLICATION_JSON)
                 .content(refund)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("REFUNDED"))
+                .andExpect(jsonPath("$.reversedFrom").value("COMPLETED"))
                 .andExpect(jsonPath("$.refundReason").value("Customer request"))
                 .andExpect(jsonPath("$.refundedBy").isNumber()).andExpect(jsonPath("$.refundedAt").exists());
         mvc.perform(get(path + "/balance").header("Authorization", cashier))
@@ -140,6 +157,20 @@ class PermissionMvcTests {
         mvc.perform(get("/order/orders").param("id", String.valueOf(id)).header("Authorization", cook))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value("SERVED"))
                 .andExpect(jsonPath("$[0].payments").isEmpty());
+
+        String pending = card.replace("\"amount\":60", "\"amount\":40")
+                .replace("}", ",\"mockOutcome\":\"PENDING\"}");
+        String pendingJson = pay(cashier, "pending-01", pending).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING")).andReturn().getResponse().getContentAsString();
+        long pendingId = JsonMapper.builder().build().readTree(pendingJson).get("id").asLong();
+        mvc.perform(get(path + "/balance").header("Authorization", cashier)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.pending").value(40)).andExpect(jsonPath("$.balance").value(40));
+        mvc.perform(post(path + "/cancel").header("Authorization", waiter)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"Customer request\"}"))
+                .andExpect(status().isConflict());
+        mvc.perform(post("/payment/payments/" + pendingId + "/refund").header("Authorization", manager)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"Void pending attempt\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.reversedFrom").value("PENDING"));
     }
 
     private org.springframework.test.web.servlet.ResultActions pay(String token, String key, String body) throws Exception {
@@ -163,6 +194,6 @@ class PermissionMvcTests {
             u.setRole(roles.findByName(role).orElseThrow());
             return users.saveAndFlush(u);
         });
-        return "Bearer " + jwt.generateToken(user.getEmail());
+        return "Bearer " + jwt.generateToken(user.getId());
     }
 }

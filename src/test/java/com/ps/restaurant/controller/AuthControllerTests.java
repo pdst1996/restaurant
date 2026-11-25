@@ -134,7 +134,7 @@ class AuthControllerTests {
         User user = existingUser();
         when(userRepository.findByUserOrEmail("ana")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password", user.getPassword())).thenReturn(true);
-        when(jwtService.generateToken(user.getEmail())).thenReturn("jwt-token");
+        when(jwtService.generateToken(user.getId())).thenReturn("jwt-token");
 
         ResponseEntity<LoginResponse> response = controller.login(new LoginRequest("ana", "password"));
 
@@ -160,7 +160,7 @@ class AuthControllerTests {
         User user = existingUser();
         when(userRepository.findByUserOrEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password", user.getPassword())).thenReturn(true);
-        when(jwtService.generateToken(user.getEmail())).thenReturn("jwt-token");
+        when(jwtService.generateToken(user.getId())).thenReturn("jwt-token");
 
         ResponseEntity<LoginResponse> response = controller.login(new LoginRequest(user.getEmail(), "password"));
 

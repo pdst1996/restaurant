@@ -16,6 +16,8 @@ import com.ps.restaurant.model.User;
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
     /** Finds a user by email, returning an empty optional when no match exists. */
     @EntityGraph(attributePaths = {"role", "role.permissions"})
+    Optional<User> findWithRoleById(Long id);
+
     Optional<User> findByEmail(String email);
 
     /** Finds a user by username, returning an empty optional when no match exists. */

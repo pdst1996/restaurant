@@ -76,6 +76,6 @@ class GlobalExceptionHandlerTests {
         assertThat(response.getStatusCode().value()).isEqualTo(status);
         assertThat(response.getBody().errorCode()).isEqualTo(code);
         assertThat(response.getBody().message()).isEqualTo("Original message");
-        assertThat(response.getBody().stackTrace()).isEqualTo(exception.getStackTrace());
+        assertThat(response.getBody().stackTrace()).isNull();
     }
 }

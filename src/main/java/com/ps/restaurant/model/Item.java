@@ -70,6 +70,9 @@ public class Item {
     @Column(nullable = false)
     private boolean available = true;
 
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean active = true;
+
     @Column(nullable = true, length = 2048)
     private String img;
     
